@@ -649,43 +649,45 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
 
 
     const getCalorieData = async (base64ImageData) => {
-    if (!base64ImageData) {
-        setError("No image data to analyze.");
-        return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName") and its estimated total calories (as "totalCalories"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
-
-    try {
-        const response = await fetch('/.netlify/functions/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64ImageData, prompt: userPrompt }),
-        });
-
-        if (!response.ok) throw new Error("Failed to analyze image.");
-
-        const result = await response.json();
-        const candidate = result.candidates?.[0];
-
-        if (candidate && candidate.content?.parts?.[0]?.text) {
-            const data = JSON.parse(candidate.content.parts[0].text);
-            setMeals(prev => [...prev, { name: data.mealName, calories: data.totalCalories }]);
-        } else {
-            throw new Error("Unexpected AI response format.");
+        if (!base64ImageData) {
+            setError("No image data to analyze.");
+            return;
         }
+        setIsLoading(true);
+        setError(null);
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName") and its estimated total calories (as "totalCalories"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
+        const payload = {
+            contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: { type: "OBJECT", properties: { mealName: { type: "STRING" }, totalCalories: { type: "NUMBER" } }, required: ["mealName", "totalCalories"] }
+            }
+        };
 
-    } catch (err) {
-        console.error("Calorie analysis error:", err);
-        setError("Sorry, something went wrong while analyzing the image.");
-    } finally {
-        setIsLoading(false);
-    }
-};
-
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody.error?.message || 'Unknown error'}`);
+            }
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                const parsedJson = JSON.parse(candidate.content.parts[0].text);
+                setApiResult(parsedJson);
+                setEditedMeal({ name: parsedJson.mealName, calories: parsedJson.totalCalories });
+            } else {
+                 throw new Error("Unexpected API response format. Could not find valid content.");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Sorry, I couldn't analyze the meal. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
     
     const handleAddMeal = () => {
         if (editedMeal.name && editedMeal.calories > 0) {
@@ -923,41 +925,31 @@ export default function App() {
     }, [surveyHistory, isFirebaseReady]);
     
     const getMealInsights = async () => {
-    if (!meals || meals.length === 0) return;
+        if (!meals || meals.length === 0) return;
+        setIsInsightLoading(true); setInsight(null); setInsightError(null);
+        const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal)`).join('\n');
+        const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily calorie goal is ${dailyGoal} kcal.`;
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ parts: [{ text: userPrompt }] }] };
 
-    setIsInsightLoading(true);
-    setInsight(null);
-    setInsightError(null);
-
-    const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal)`).join('\n');
-    const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily calorie goal is ${dailyGoal} kcal.`;
-
-    try {
-        const response = await fetch('/.netlify/functions/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: userPrompt }),
-        });
-
-        if (!response.ok) throw new Error("Failed to get insight.");
-
-        const result = await response.json();
-        const candidate = result.candidates?.[0];
-
-        if (candidate && candidate.content?.parts?.[0]?.text) {
-            setInsight(candidate.content.parts[0].text);
-        } else {
-            throw new Error("Unexpected AI response format.");
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error("Failed to get a response from the AI.");
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                setInsight(candidate.content.parts[0].text);
+            } else {
+                throw new Error("The AI response was empty or in an unexpected format.");
+            }
+        } catch (err) {
+            console.error("Insight API error:", err);
+            setInsightError("Sorry, I couldn't generate an insight right now. Please try again later.");
+        } finally {
+            setIsInsightLoading(false);
         }
-
-    } catch (err) {
-        console.error("Insight API error:", err);
-        setInsightError("Sorry, I couldn't generate an insight right now. Please try again later.");
-    } finally {
-        setIsInsightLoading(false);
-    }
-};
-
+    };
     const clearInsight = () => { setInsight(null); setInsightError(null); };
     
     const handleLogout = () => {

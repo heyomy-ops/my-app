@@ -18,13 +18,13 @@ const debounce = (func, delay) => {
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_API_KEY,
-    authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_APP_ID,
-    measurementId: import.meta.env.VITE_MEASUREMENT_ID
+    apiKey: process.env.REACT_APP_API_KEY,
+    authDomain: process.env.REACT_APP_AUTH_DOMAIN,
+    projectId: process.env.REACT_APP_PROJECT_ID,
+    storageBucket: process.env.REACT_APP_STORAGE_BUCKET,
+    messagingSenderId: process.env.REACT_APP_MESSAGING_SENDER_ID,
+    appId: process.env.REACT_APP_APP_ID,
+    measurementId: process.env.REACT_APP_MEASUREMENT_ID
 };
 
 
@@ -654,7 +654,7 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
         }
         setIsLoading(true);
         setError(null);
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName") and its estimated total calories (as "totalCalories"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
         const payload = {
@@ -928,7 +928,7 @@ export default function App() {
         setIsInsightLoading(true); setInsight(null); setInsightError(null);
         const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal)`).join('\n');
         const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily calorie goal is ${dailyGoal} kcal.`;
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const payload = { contents: [{ parts: [{ text: userPrompt }] }] };
 

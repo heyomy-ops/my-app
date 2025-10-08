@@ -2,7 +2,7 @@ import React from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 
 // --- Helper & Utility Functions ---
 
@@ -18,15 +18,14 @@ const debounce = (func, delay) => {
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-    apiKey: process.env.REACT_APP_API_KEY,
-    authDomain: process.env.REACT_APP_AUTH_DOMAIN,
-    projectId: process.env.REACT_APP_PROJECT_ID,
-    storageBucket: process.env.REACT_APP_STORAGE_BUCKET,
-    messagingSenderId: process.env.REACT_APP_MESSAGING_SENDER_ID,
-    appId: process.env.REACT_APP_APP_ID,
-    measurementId: process.env.REACT_APP_MEASUREMENT_ID
+    apiKey: "AIzaSyAaXMw0-E9cE9mwVYJYKBSRZhPNoblDtU4",
+    authDomain: "wgain-d5ab1.firebaseapp.com",
+    projectId: "wgain-d5ab1",
+    storageBucket: "wgain-d5ab1.appspot.com",
+    messagingSenderId: "1060562581519",
+    appId: "1:1060562581519:web:211a5a08d6501802688b7a",
+    measurementId: "G-Y4RQ7DDRXC"
 };
-
 
 
 // Initialize Firebase
@@ -56,17 +55,100 @@ const SparklesIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
 );
 const FireIcon = ({ lit }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
-        className={`lucide lucide-flame transition-colors duration-500 ${lit ? 'text-orange-500 fill-current' : 'text-slate-500'}`}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        className={`lucide lucide-flame transition-colors duration-500 ${lit ? 'text-orange-500 fill-orange-500' : 'text-slate-600'}`}>
         <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
     </svg>
 );
 const LogOutIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
 );
+const UnfoldVerticalIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-unfold-vertical"><path d="M12 22v-6"/><path d="m15 19-3 3-3-3"/><path d="M12 2v6"/><path d="m15 5-3-3-3 3"/></svg>
+);
+const WaterDropIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-droplet"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+);
 
 
 // --- Child Components ---
+const NumberScroller = ({ value, onChange, min, max }) => {
+    const [isDragging, setIsDragging] = React.useState(false);
+    const dragStartY = React.useRef(0);
+    const startValue = React.useRef(0);
+    const sensitivity = 20; // smaller is more sensitive
+
+    const handleValueChange = (newValue) => {
+        const clampedValue = Math.max(min, Math.min(max, Math.round(newValue)));
+        if (clampedValue !== value) {
+            onChange(clampedValue);
+        }
+    };
+
+    const handleDragStart = (clientY) => {
+        dragStartY.current = clientY;
+        startValue.current = value;
+        setIsDragging(true);
+    };
+
+    const handleDragMove = (clientY) => {
+        if (!isDragging) return;
+        const deltaY = clientY - dragStartY.current;
+        const valueChange = -deltaY / sensitivity;
+        const newValue = startValue.current + valueChange;
+        handleValueChange(newValue);
+    };
+
+    const handleDragEnd = () => {
+        setIsDragging(false);
+    };
+
+    // Touch events
+    const handleTouchStart = (e) => handleDragStart(e.touches[0].clientY);
+    const handleTouchMove = (e) => handleDragMove(e.touches[0].clientY);
+    const handleTouchEnd = () => handleDragEnd();
+
+    // Mouse events
+    const handleMouseDown = (e) => {
+        handleDragStart(e.clientY);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    };
+    const handleMouseMove = (e) => handleDragMove(e.clientY);
+    const handleMouseUp = () => {
+        handleDragEnd();
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Wheel event
+    const handleWheel = (e) => {
+        e.preventDefault();
+        const change = e.deltaY < 0 ? 1 : -1;
+        handleValueChange(value + change);
+    };
+
+    return (
+        <div
+            className="h-24 w-full relative flex flex-col items-center justify-center cursor-ns-resize select-none bg-slate-700 rounded-lg p-2"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onWheel={handleWheel}
+        >
+            <div className={`transition-transform duration-100 ${isDragging ? 'scale-110' : 'scale-100'}`}>
+                <div className="text-5xl font-bold text-slate-100 text-center">
+                    {Math.round(value)}
+                </div>
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 right-2 text-slate-500 opacity-70">
+                <UnfoldVerticalIcon />
+            </div>
+        </div>
+    );
+};
+
 
 const AuthScreen = () => {
     const [isLogin, setIsLogin] = React.useState(true);
@@ -154,7 +236,7 @@ const OnboardingSurvey = ({ onComplete }) => {
         activityLevel: 'sedentary',
         targetWeight: 65,
     });
-    
+
     const totalSteps = 7;
 
     const handleNext = () => setStep(s => Math.min(s + 1, totalSteps - 1));
@@ -166,13 +248,40 @@ const OnboardingSurvey = ({ onComplete }) => {
         if (gender === 'male') return 10 * weight + 6.25 * height - 5 * age + 5;
         return 10 * weight + 6.25 * height - 5 * age - 161;
     };
+
+    const calculateProteinGoal = (data) => {
+        const { weight, activityLevel } = data;
+        const multipliers = {
+            sedentary: 0.8,
+            light: 1.2,
+            moderate: 1.4,
+            active: 1.6
+        };
+        // Round to the nearest 5g
+        const protein = Math.round((weight * multipliers[activityLevel]) / 5) * 5;
+        return protein;
+    };
     
+    const calculateWaterGoal = (data) => {
+        const { weight, activityLevel } = data;
+        let baseIntake = weight * 35; // 35ml per kg of body weight
+        const activityBonus = {
+            sedentary: 0,
+            light: 300,
+            moderate: 600,
+            active: 900
+        };
+        const totalIntake = baseIntake + activityBonus[activityLevel];
+        // Round to nearest 50ml
+        return Math.round(totalIntake / 50) * 50;
+    };
+
     const calculateMaintenanceCalories = (data) => {
         const bmr = calculateBMR(data);
         const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
         return Math.round(bmr * activityMultipliers[data.activityLevel]);
     };
-    
+
     const calculateFinalGoal = (data) => {
         const maintenance = calculateMaintenanceCalories(data);
         switch (data.goal) {
@@ -181,11 +290,13 @@ const OnboardingSurvey = ({ onComplete }) => {
             default: return Math.round(maintenance / 10) * 10;
         }
     };
-    
+
     const handleFinish = () => {
-        onComplete({ 
-            goal: calculateFinalGoal(surveyData), 
+        onComplete({
+            goal: calculateFinalGoal(surveyData),
             maintenance: calculateMaintenanceCalories(surveyData),
+            proteinGoal: calculateProteinGoal(surveyData),
+            waterGoal: calculateWaterGoal(surveyData),
             initialSurvey: surveyData
         });
     };
@@ -280,7 +391,7 @@ const OnboardingSurvey = ({ onComplete }) => {
                     { label: '2 Months', weight: parseFloat(surveyData.weight) + (weightChangePerDay * 60) },
                     { label: '3 Months', weight: parseFloat(surveyData.weight) + (weightChangePerDay * 90) },
                 ];
-                
+
                 return (
                      <div className="text-center">
                         <h2 className="text-2xl font-bold mb-4">Your Personal Plan</h2>
@@ -289,7 +400,7 @@ const OnboardingSurvey = ({ onComplete }) => {
                             <span className="text-4xl font-extrabold text-blue-400">{goal}</span>
                             <span className="text-xl text-slate-300"> kcal</span>
                         </div>
-                        
+
                         <h3 className="text-xl font-bold mb-4">Your Projected Journey</h3>
                         {isFinite(weeksToGoal) && weeksToGoal > 0 ? (
                              <p className="text-md text-slate-300 mb-6">
@@ -334,7 +445,7 @@ const OnboardingSurvey = ({ onComplete }) => {
                 return null;
         }
     };
-    
+
     return (
         <div className="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
             <div className="bg-slate-800 text-slate-200 rounded-2xl shadow-2xl w-full max-w-md mx-auto relative overflow-hidden">
@@ -354,7 +465,7 @@ const OnboardingSurvey = ({ onComplete }) => {
                 <div className="p-8 min-h-[450px] flex flex-col justify-center">
                     {renderStep()}
                 </div>
-                
+
                 <div className="p-4 flex justify-between items-center">
                      <button onClick={handleBack} disabled={step === 0} className="px-6 py-2 rounded-lg font-semibold text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
                      {step < totalSteps - 1 && <button onClick={handleNext} className="px-6 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-500">Next</button>}
@@ -367,7 +478,7 @@ const OnboardingSurvey = ({ onComplete }) => {
 const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
     const [newWeight, setNewWeight] = React.useState(surveyHistory?.data?.weight || 0);
     const [recalculated, setRecalculated] = React.useState(null);
-    
+
     React.useEffect(() => {
         if (surveyHistory?.data?.weight) {
             setNewWeight(surveyHistory.data.weight);
@@ -389,7 +500,9 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
         const updatedSurveyData = { ...surveyHistory.data, weight: newWeight };
         const newMaintenance = calculateMaintenanceCalories(updatedSurveyData);
         const newGoal = calculateFinalGoal(updatedSurveyData);
-        setRecalculated({ goal: newGoal, maintenance: newMaintenance });
+        const newProteinGoal = calculateProteinGoal(updatedSurveyData);
+        const newWaterGoal = calculateWaterGoal(updatedSurveyData);
+        setRecalculated({ goal: newGoal, maintenance: newMaintenance, proteinGoal: newProteinGoal, waterGoal: newWaterGoal });
     };
 
     const handleUpdatePlan = () => {
@@ -399,7 +512,27 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
         });
         onClose();
     };
+
+    const calculateProteinGoal = (data) => {
+        const { weight, activityLevel } = data;
+        const multipliers = {
+            sedentary: 0.8,
+            light: 1.2,
+            moderate: 1.4,
+            active: 1.6
+        };
+        const protein = Math.round((weight * multipliers[activityLevel]) / 5) * 5;
+        return protein;
+    };
     
+    const calculateWaterGoal = (data) => {
+        const { weight, activityLevel } = data;
+        let baseIntake = weight * 35;
+        const activityBonus = { sedentary: 0, light: 300, moderate: 600, active: 900 };
+        const totalIntake = baseIntake + activityBonus[activityLevel];
+        return Math.round(totalIntake / 50) * 50;
+    };
+
     const calculateBMR = (data) => {
         const { gender, weight, height, age } = data;
         if (gender === 'male') return 10 * weight + 6.25 * height - 5 * age + 5;
@@ -426,7 +559,7 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
             <div className="bg-slate-800 text-slate-200 rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-300 ease-out scale-95 opacity-0 animate-fade-in-scale">
                 <h2 className="text-3xl font-bold text-center text-slate-100 mb-4">Monthly Check-in!</h2>
                 <p className="text-center text-slate-400 mb-6">It's been a month! Let's update your plan based on your progress.</p>
-                
+
                 <div className="text-center bg-slate-700/50 p-4 rounded-lg mb-6">
                     <p className="text-slate-300">Based on your plan, we predicted you would be around:</p>
                     <p className="text-2xl font-bold text-blue-400">{predictedWeight} kg</p>
@@ -434,7 +567,7 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
 
                 <div className="space-y-4">
                     <label className="block text-lg font-semibold text-center">What is your current weight? (kg)</label>
-                    <input 
+                    <input
                         type="number"
                         value={newWeight}
                         onChange={e => setNewWeight(parseInt(e.target.value) || 0)}
@@ -464,45 +597,81 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
 };
 
 
-const CalorieProgressCircle = ({ totalCalories, dailyGoal, onGoalChange }) => {
-    const circumference = 2 * Math.PI * 90;
-    const progress = dailyGoal > 0 ? Math.min(totalCalories / dailyGoal, 1) : 0;
-    const offset = circumference * (1 - progress);
+const NutritionDashboard = ({ totalCalories, dailyGoal, onGoalChange, totalProtein, dailyProteinGoal, onProteinGoalChange, todaysWaterIntake, dailyWaterGoal, onAddWater }) => {
+    const calorieProgress = dailyGoal > 0 ? Math.min((totalCalories / dailyGoal) * 100, 100) : 0;
+    const proteinProgress = dailyProteinGoal > 0 ? Math.min((totalProtein / dailyProteinGoal) * 100, 100) : 0;
+    const waterProgress = dailyWaterGoal > 0 ? Math.min((todaysWaterIntake / dailyWaterGoal) * 100, 100) : 0;
     
-    const handleGoalClick = () => {
-        const newGoal = parseInt(prompt("Set your new daily calorie goal:", dailyGoal), 10);
-        if (!isNaN(newGoal) && newGoal > 0) onGoalChange(newGoal);
-    };
-
     return (
-        <div className="relative flex items-center justify-center w-64 h-64">
-            <svg className="absolute w-full h-full transform -rotate-90">
-                <circle cx="128" cy="128" r="90" strokeWidth="20" className="text-slate-700" fill="transparent" />
-                <circle
-                    cx="128"
-                    cy="128"
-                    r="90"
-                    strokeWidth="20"
-                    className="text-blue-500 transition-all duration-1000 ease-out"
-                    fill="transparent"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                />
-            </svg>
-            <div className="absolute flex flex-col items-center text-center">
-                <span className="text-5xl font-bold text-slate-100">{totalCalories}</span>
-                <span 
-                    className="text-lg text-slate-400 hover:text-blue-400 cursor-pointer"
-                    onClick={handleGoalClick}
-                    title="Click to change goal"
-                >
-                    / {dailyGoal} kcal
-                </span>
+        <div className="w-full bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Calorie Section */}
+                <div className="flex flex-col">
+                   <h3 className="text-lg font-semibold text-slate-300 mb-2">Calories</h3>
+                   <div className="flex items-baseline gap-2">
+                       <span className="text-4xl font-bold text-slate-100">{totalCalories}</span>
+                       <span
+                           className="text-lg text-slate-400 hover:text-blue-400 cursor-pointer"
+                           onClick={onGoalChange}
+                           title="Click to change goal"
+                       >
+                           / {dailyGoal} kcal
+                       </span>
+                   </div>
+                   <div className="w-full bg-slate-700 rounded-full h-2.5 mt-3">
+                       <div
+                           className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
+                           style={{ width: `${calorieProgress}%` }}
+                       ></div>
+                   </div>
+                </div>
+
+                {/* Protein Section */}
+                <div className="flex flex-col">
+                   <h3 className="text-lg font-semibold text-slate-300 mb-2">Protein</h3>
+                   <div className="flex items-baseline gap-2">
+                       <span className="text-4xl font-bold text-slate-100">{totalProtein}</span>
+                       <span
+                           className="text-lg text-slate-400 hover:text-sky-400 cursor-pointer"
+                           onClick={onProteinGoalChange}
+                           title="Click to change protein goal"
+                       >
+                           / {dailyProteinGoal} g
+                       </span>
+                   </div>
+                   <div className="w-full bg-slate-700 rounded-full h-2.5 mt-3">
+                       <div
+                           className="bg-sky-500 h-2.5 rounded-full transition-all duration-500"
+                           style={{ width: `${proteinProgress}%` }}
+                       ></div>
+                   </div>
+                </div>
+                
+                 {/* Water Section */}
+                <div className="flex flex-col">
+                   <h3 className="text-lg font-semibold text-slate-300 mb-2">Water</h3>
+                   <div className="flex items-baseline justify-between">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-bold text-slate-100">{todaysWaterIntake}</span>
+                            <span className="text-lg text-slate-400">/ {dailyWaterGoal} ml</span>
+                        </div>
+                        <button onClick={onAddWater} className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/40 rounded-full p-2 flex items-center justify-center transition-colors">
+                            <PlusIcon />
+                        </button>
+                   </div>
+                   <div className="w-full bg-slate-700 rounded-full h-2.5 mt-3">
+                       <div
+                           className="bg-cyan-500 h-2.5 rounded-full transition-all duration-500"
+                           style={{ width: `${waterProgress}%` }}
+                       ></div>
+                   </div>
+                </div>
+
             </div>
         </div>
     );
 };
+
 
 const StreakCounter = ({ streakData }) => {
     const [currentStreak, setCurrentStreak] = React.useState(0);
@@ -527,11 +696,62 @@ const StreakCounter = ({ streakData }) => {
     const todayCompleted = streakData[new Date().toISOString().split('T')[0]] || false;
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer">
             <FireIcon lit={todayCompleted} />
             <div className="flex items-center gap-1">
                  <span className="text-2xl font-bold text-slate-200">{currentStreak}</span>
                  <span className="text-sm font-semibold text-slate-400 leading-tight">day<br/>streak</span>
+            </div>
+        </div>
+    );
+};
+
+const StreakCalendar = ({ streakData }) => {
+    const today = new Date();
+    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const week = Array.from({ length: 7 }).map((_, i) => {
+        const date = new Date(startOfWeek);
+        date.setDate(date.getDate() + i);
+        return date;
+    });
+
+    const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+
+    return (
+        <div className="flex justify-around items-center p-4">
+            {week.map((date, i) => {
+                const dateKey = date.toISOString().split('T')[0];
+                const isCompleted = streakData[dateKey] || false;
+                const isToday = isSameDay(date, new Date());
+
+                return (
+                    <div key={dateKey} className="flex flex-col items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-400">{weekDays[i]}</span>
+                        <div className={`w-10 h-10 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-500/20' : ''}`}>
+                            <FireIcon lit={isCompleted} />
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+const StreakModal = ({ isOpen, onClose, streakData }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-fade-in-scale">
+             <div className="bg-slate-800 text-slate-200 rounded-2xl shadow-2xl w-full max-w-md mx-auto relative">
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold text-slate-100 text-center mb-4">Weekly Streak</h2>
+                    <StreakCalendar streakData={streakData} />
+                </div>
+                 <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-700 rounded-full transition-colors">
+                    <XIcon />
+                </button>
             </div>
         </div>
     );
@@ -550,7 +770,10 @@ const MealList = ({ meals, onRemove }) => (
                              {meal.image && <img src={meal.image} alt={meal.name} className="w-16 h-16 object-cover rounded-lg" />}
                             <div>
                                 <p className="font-semibold text-slate-100 capitalize">{meal.name}</p>
-                                <p className="text-sm text-slate-400">{meal.calories} kcal</p>
+                                <p className="text-sm text-slate-400">
+                                    {meal.calories} kcal
+                                    <span className="mx-2 text-slate-600">|</span>
+                                    {meal.protein}g protein</p>
                             </div>
                         </div>
                         <button onClick={() => onRemove(meal)} className="p-2 text-slate-500 rounded-full hover:bg-red-500/10 hover:text-red-400 transition-colors">
@@ -575,7 +798,8 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
     const [stream, setStream] = React.useState(null);
     const [isLoading, setIsLoading] = React.useState(false);
     const [apiResult, setApiResult] = React.useState(null);
-    const [editedMeal, setEditedMeal] = React.useState({ name: '', calories: 0 });
+    const [editedMeal, setEditedMeal] = React.useState({ name: '', calories: 0, protein: 0, weight: 0 });
+    const [nutritionRatios, setNutritionRatios] = React.useState(null); // To store calories/protein per gram
     const [error, setError] = React.useState(null);
     const videoRef = React.useRef(null);
     const canvasRef = React.useRef(null);
@@ -593,7 +817,8 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
         setIsLoading(false);
         setApiResult(null);
         setError(null);
-        setEditedMeal({ name: '', calories: 0 });
+        setEditedMeal({ name: '', calories: 0, protein: 0, weight: 0 });
+        setNutritionRatios(null);
     }, [stopCamera]);
 
     React.useEffect(() => {
@@ -601,8 +826,8 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             const startCamera = async () => {
                 if (stream) return;
                 try {
-                    const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment' } 
+                    const mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment' }
                     });
                     setStream(mediaStream);
                     if (videoRef.current) {
@@ -640,7 +865,7 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
         stopCamera();
         getCalorieData(base64Data);
     };
-    
+
     const handleRetake = () => {
         setCapturedImage(null);
         setApiResult(null);
@@ -655,14 +880,14 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
         }
         setIsLoading(true);
         setError(null);
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        const apiKey = "AIzaSyAEMGk8n6nSeAU73FL9Y-EQX7heHKrw388";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName") and its estimated total calories (as "totalCalories"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
+        const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName"), its estimated total calories (as "totalCalories"), its estimated total protein in grams (as "totalProtein"), and its estimated weight in grams (as "estimatedWeight"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
         const payload = {
             contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }] }],
             generationConfig: {
                 responseMimeType: "application/json",
-                responseSchema: { type: "OBJECT", properties: { mealName: { type: "STRING" }, totalCalories: { type: "NUMBER" } }, required: ["mealName", "totalCalories"] }
+                responseSchema: { type: "OBJECT", properties: { mealName: { type: "STRING" }, totalCalories: { type: "NUMBER" }, totalProtein: { type: "NUMBER" }, estimatedWeight: { type: "NUMBER"} }, required: ["mealName", "totalCalories", "totalProtein", "estimatedWeight"] }
             }
         };
 
@@ -677,7 +902,15 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             if (candidate && candidate.content?.parts?.[0]?.text) {
                 const parsedJson = JSON.parse(candidate.content.parts[0].text);
                 setApiResult(parsedJson);
-                setEditedMeal({ name: parsedJson.mealName, calories: parsedJson.totalCalories });
+                setEditedMeal({ name: parsedJson.mealName, calories: parsedJson.totalCalories, protein: parsedJson.totalProtein, weight: parsedJson.estimatedWeight });
+
+                if (parsedJson.estimatedWeight > 0) {
+                    setNutritionRatios({
+                        caloriesPerGram: parsedJson.totalCalories / parsedJson.estimatedWeight,
+                        proteinPerGram: parsedJson.totalProtein / parsedJson.estimatedWeight,
+                    });
+                }
+
             } else {
                  throw new Error("Unexpected API response format. Could not find valid content.");
             }
@@ -688,40 +921,75 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             setIsLoading(false);
         }
     };
-    
+
+    const handleWeightChange = (newWeight) => {
+        if (nutritionRatios) {
+            setEditedMeal({
+                ...editedMeal,
+                weight: newWeight,
+                calories: newWeight * nutritionRatios.caloriesPerGram,
+                protein: newWeight * nutritionRatios.proteinPerGram
+            });
+        } else {
+            setEditedMeal({ ...editedMeal, weight: newWeight });
+        }
+    };
+
+    const handleManualNutritionChange = (field, value) => {
+        setEditedMeal(prev => ({ ...prev, [field]: value }));
+        // When user edits calories or protein manually, stop automatic recalculations
+        setNutritionRatios(null);
+    };
+
     const handleAddMeal = () => {
-        if (editedMeal.name && editedMeal.calories > 0) {
+        if (editedMeal.name && editedMeal.calories > 0 && editedMeal.protein >= 0) {
             onAddMeal({
                 id: crypto.randomUUID(),
                 name: editedMeal.name,
-                calories: Number(editedMeal.calories),
-                image: capturedImage 
+                calories: Math.round(Number(editedMeal.calories)),
+                protein: Math.round(Number(editedMeal.protein)),
+                image: capturedImage
             });
             handleClose();
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 transition-opacity">
-            <div className="bg-slate-800 text-slate-200 rounded-2xl shadow-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative transform transition-all duration-300 ease-out scale-95 opacity-0 animate-fade-in-scale">
-                <button onClick={handleClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-700 rounded-full transition-colors z-20">
+        <div className="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center p-4 z-50 transition-opacity animate-fade-in-scale">
+            <div className="w-full h-full flex flex-col items-center justify-center">
+                <button onClick={handleClose} className="absolute top-6 right-6 p-3 text-slate-400 bg-slate-800/50 hover:bg-slate-700 rounded-full transition-colors z-20">
                     <XIcon />
                 </button>
-                <div className="space-y-6">
+                <div className="w-full max-w-md space-y-6">
                     <h2 className="text-3xl font-bold text-center text-slate-100">Scan a Meal</h2>
-                    <div className="bg-slate-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center relative">
+                    <div className="bg-slate-800 rounded-2xl overflow-hidden aspect-video flex items-center justify-center relative border-2 border-slate-700 shadow-lg">
                         {!capturedImage ? <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" /> : <img src={capturedImage} alt="Captured meal" className="w-full h-full object-cover" />}
                         <canvas ref={canvasRef} className="hidden"></canvas>
                     </div>
-                    {!apiResult && !isLoading && !capturedImage && <button onClick={handleScanMeal} disabled={!stream} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"><CameraIcon />Scan Meal</button>}
+                    {!apiResult && !isLoading && !capturedImage && <button onClick={handleScanMeal} disabled={!stream} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"><CameraIcon />Scan Meal</button>}
                     {isLoading && <Loader />}
                     {error && !isLoading && <div className="text-center"><p className="text-red-400 font-semibold mb-4">{error}</p><button onClick={handleRetake} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors flex items-center justify-center gap-2 mx-auto"><RefreshCwIcon />Try Again</button></div>}
                     {apiResult && !isLoading && (
-                        <div className="p-6 bg-slate-700 rounded-xl text-center animate-fade-in-up space-y-4">
-                            <input type="text" value={editedMeal.name} onChange={(e) => setEditedMeal({...editedMeal, name: e.target.value})} className="w-full p-2 bg-slate-600 border border-slate-500 rounded-lg text-xl font-semibold text-slate-100 capitalize text-center"/>
-                            <div className="flex items-center justify-center">
-                                <input type="number" value={editedMeal.calories} onChange={(e) => setEditedMeal({...editedMeal, calories: parseInt(e.target.value, 10) || 0})} className="w-32 p-2 bg-slate-600 border border-slate-500 rounded-lg text-4xl font-bold text-blue-400 text-center"/>
-                                <span className="text-2xl text-slate-400 ml-2">kcal</span>
+                        <div className="p-6 bg-slate-800 border border-slate-700 rounded-xl text-center animate-fade-in-up space-y-4">
+                            <input type="text" value={editedMeal.name} onChange={(e) => setEditedMeal({...editedMeal, name: e.target.value})} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg text-xl font-semibold text-slate-100 capitalize text-center"/>
+                            <div className="grid grid-cols-3 gap-2 items-center">
+                                <div>
+                                    <input type="number" value={Math.round(editedMeal.calories)} onChange={(e) => handleManualNutritionChange('calories', parseInt(e.target.value, 10) || 0)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg text-2xl font-bold text-blue-400 text-center"/>
+                                    <span className="text-sm text-slate-400 mt-1 block">kcal</span>
+                                </div>
+                                 <div>
+                                    <input type="number" value={Math.round(editedMeal.protein)} onChange={(e) => handleManualNutritionChange('protein', parseInt(e.target.value, 10) || 0)} className="w-full p-2 bg-slate-700 border border-slate-600 rounded-lg text-2xl font-bold text-sky-400 text-center"/>
+                                    <span className="text-sm text-slate-400 mt-1 block">protein (g)</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-center">
+                                    <NumberScroller
+                                        value={Math.round(editedMeal.weight)}
+                                        onChange={handleWeightChange}
+                                        min={0}
+                                        max={2000}
+                                    />
+                                    <span className="text-sm text-slate-400 mt-1">weight (g)</span>
+                                </div>
                             </div>
                             <div className="flex gap-4">
                                 <button onClick={handleRetake} className="w-full bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-500 transition-colors flex items-center justify-center gap-2"><RefreshCwIcon />Retake</button>
@@ -768,7 +1036,7 @@ const FirebaseLoadingScreen = () => (
 // --- Main App Component ---
 export default function App() {
     const getTodaysDateKey = () => new Date().toISOString().split('T')[0];
-    
+
     // Firebase and Auth state
     const [user, setUser] = React.useState(null);
     const [isFirebaseReady, setIsFirebaseReady] = React.useState(false);
@@ -776,19 +1044,37 @@ export default function App() {
     // App Data State (synced with Firestore)
     const [surveyHistory, setSurveyHistory] = React.useState(null);
     const [dailyGoal, setDailyGoal] = React.useState(2200);
+    const [dailyProteinGoal, setDailyProteinGoal] = React.useState(120);
+    const [dailyWaterGoal, setDailyWaterGoal] = React.useState(2500);
     const [maintenanceCalories, setMaintenanceCalories] = React.useState(2000);
     const [meals, setMeals] = React.useState([]);
+    const [todaysWaterIntake, setTodaysWaterIntake] = React.useState(0);
     const [streakData, setStreakData] = React.useState({});
-    
+
     // UI State
     const [isAddMealModalOpen, setIsAddMealModalOpen] = React.useState(false);
     const [isCheckInModalOpen, setIsCheckInModalOpen] = React.useState(false);
+    const [isStreakModalOpen, setIsStreakModalOpen] = React.useState(false);
     const [insight, setInsight] = React.useState(null);
     const [isInsightLoading, setIsInsightLoading] = React.useState(false);
     const [insightError, setInsightError] = React.useState(null);
     const [toastMessage, setToastMessage] = React.useState('');
-    
-    const totalCalories = React.useMemo(() => meals.reduce((sum, meal) => sum + meal.calories, 0), [meals]);
+
+    // Effect to control body scroll when modals are open
+    React.useEffect(() => {
+        const body = document.body;
+        if (isAddMealModalOpen || isCheckInModalOpen || isStreakModalOpen) {
+            body.style.overflow = 'hidden';
+        } else {
+            body.style.overflow = 'auto';
+        }
+        return () => {
+            body.style.overflow = 'auto';
+        };
+    }, [isAddMealModalOpen, isCheckInModalOpen, isStreakModalOpen]);
+
+    const totalCalories = React.useMemo(() => meals.reduce((sum, meal) => sum + (meal.calories || 0), 0), [meals]);
+    const totalProtein = React.useMemo(() => meals.reduce((sum, meal) => sum + (meal.protein || 0), 0), [meals]);
     const prevTotalCalories = React.useRef(totalCalories);
 
     // --- Firebase Auth & Data Sync Effects ---
@@ -799,52 +1085,64 @@ export default function App() {
         });
         return () => unsubscribe();
     }, []);
-    
+
     React.useEffect(() => {
         if (!user) return;
         const userId = user.uid;
+        const todayKey = getTodaysDateKey();
+        
         const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/userProfile`, 'settings');
         const unsubscribeProfile = onSnapshot(userProfileRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setSurveyHistory(data.surveyHistory || null);
                 setDailyGoal(data.dailyGoal || 2200);
+                setDailyProteinGoal(data.dailyProteinGoal || 120);
+                setDailyWaterGoal(data.dailyWaterGoal || 2500);
                 setMaintenanceCalories(data.maintenanceCalories || 2000);
                 setStreakData(data.streakData || {});
             } else {
                 setSurveyHistory(null);
             }
         });
-        
-        const todayKey = getTodaysDateKey();
+
         const mealsRef = doc(db, `artifacts/${appId}/users/${userId}/dailyMeals`, todayKey);
         const unsubscribeMeals = onSnapshot(mealsRef, (docSnap) => {
             setMeals(docSnap.exists() ? docSnap.data().meals || [] : []);
         });
 
+        const waterRef = doc(db, `artifacts/${appId}/users/${userId}/dailyWater`, todayKey);
+        const unsubscribeWater = onSnapshot(waterRef, (docSnap) => {
+            setTodaysWaterIntake(docSnap.exists() ? docSnap.data().intake || 0 : 0);
+        });
+
         return () => {
             unsubscribeProfile();
             unsubscribeMeals();
+            unsubscribeWater();
         };
 
     }, [user]);
 
-    const handleSurveyComplete = async ({ goal, maintenance, initialSurvey }) => {
+    const handleSurveyComplete = async ({ goal, maintenance, proteinGoal, waterGoal, initialSurvey }) => {
         if (!user) return;
         const todayKey = getTodaysDateKey();
         const surveyPayload = { startDate: todayKey, data: initialSurvey, lastCheckIn: todayKey };
         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
         await setDoc(userProfileRef, {
             dailyGoal: goal,
+            dailyProteinGoal: proteinGoal,
+            dailyWaterGoal: waterGoal,
             maintenanceCalories: maintenance,
             surveyHistory: surveyPayload,
             streakData: {},
         }, { merge: true });
     };
-    
-    const handleCheckInUpdate = async ({ goal, maintenance, newWeight }) => {
+
+    const handleCheckInUpdate = async ({ goal, maintenance, proteinGoal, waterGoal, newWeight }) => {
         if (!user || !surveyHistory) return;
         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
+
         const updatedHistory = {
             ...surveyHistory,
             data: { ...surveyHistory.data, weight: newWeight },
@@ -852,6 +1150,8 @@ export default function App() {
         };
         await updateDoc(userProfileRef, {
             dailyGoal: goal,
+            dailyProteinGoal: proteinGoal,
+            dailyWaterGoal: waterGoal,
             maintenanceCalories: maintenance,
             surveyHistory: updatedHistory,
         });
@@ -871,23 +1171,38 @@ export default function App() {
         await updateDoc(mealsRef, { meals: arrayRemove(mealToRemove) });
     };
 
-    const handleGoalChange = async (newGoal) => {
-         if (!user) return;
-         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
-         await updateDoc(userProfileRef, { dailyGoal: newGoal });
+    const handleAddWater = async () => {
+        if (!user) return;
+        const todayKey = getTodaysDateKey();
+        const waterRef = doc(db, `artifacts/${appId}/users/${user.uid}/dailyWater`, todayKey);
+        await setDoc(waterRef, { intake: increment(100) }, { merge: true });
     };
     
+    const handleGoalChange = (newGoal) => {
+         if (!user || isNaN(newGoal) || newGoal <= 0) return;
+         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
+         updateDoc(userProfileRef, { dailyGoal: newGoal });
+    };
+
+    const handleProteinGoalChange = (newGoal) => {
+         if (!user || isNaN(newGoal) || newGoal <= 0) return;
+         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
+         updateDoc(userProfileRef, { dailyProteinGoal: newGoal });
+    };
+
     const updateStreakData = async () => {
         if (!user) return;
         const todayKey = getTodaysDateKey();
         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
-        await updateDoc(userProfileRef, { [`streakData.${todayKey}`]: true });
+        if (totalCalories >= dailyGoal) {
+             await updateDoc(userProfileRef, { [`streakData.${todayKey}`]: true });
+        }
     }
 
     React.useEffect(() => {
         if (!isFirebaseReady || !user) return;
         const todayKey = getTodaysDateKey();
-        const hasHitMaintenanceToday = streakData[todayKey] || false;
+        const hasHitGoalToday = streakData[todayKey] || false;
 
         if (prevTotalCalories.current < dailyGoal && totalCalories >= dailyGoal && dailyGoal > 0) {
             const script = document.createElement('script');
@@ -895,23 +1210,18 @@ export default function App() {
             script.onload = () => window.confetti && window.confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
             document.body.appendChild(script);
             setTimeout(() => document.body.contains(script) && document.body.removeChild(script), 4000);
-        }
-
-        if (totalCalories >= maintenanceCalories && !hasHitMaintenanceToday) {
-            navigator.vibrate && navigator.vibrate(200);
-            updateStreakData();
-
-            if (dailyGoal > totalCalories) {
-                const remaining = dailyGoal - totalCalories;
-                setToastMessage(`Maintenance hit! Just ${remaining} kcal more to go!`);
-            } else {
-                setToastMessage(`Daily goal achieved! Great job!`);
-            }
+            
+            setToastMessage(`Daily goal achieved! Great job!`);
             setTimeout(() => setToastMessage(''), 5000);
         }
 
+        if (totalCalories >= dailyGoal && !hasHitGoalToday) {
+            navigator.vibrate && navigator.vibrate(200);
+            updateStreakData();
+        }
+
         prevTotalCalories.current = totalCalories;
-    }, [totalCalories, dailyGoal, maintenanceCalories, streakData, isFirebaseReady, user]);
+    }, [totalCalories, dailyGoal, streakData, isFirebaseReady, user]);
 
      React.useEffect(() => {
         if (surveyHistory && isFirebaseReady) {
@@ -919,17 +1229,17 @@ export default function App() {
             const lastCheckInDate = new Date(surveyHistory.lastCheckIn);
             const diffTime = Math.abs(today - lastCheckInDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays >= 30) setIsCheckInModalOpen(true);
         }
     }, [surveyHistory, isFirebaseReady]);
-    
+
     const getMealInsights = async () => {
         if (!meals || meals.length === 0) return;
         setIsInsightLoading(true); setInsight(null); setInsightError(null);
-        const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal)`).join('\n');
-        const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily calorie goal is ${dailyGoal} kcal.`;
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal, ~${m.protein}g protein)`).join('\n');
+        const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis focusing on both calories and protein. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily goals are ${dailyGoal} kcal and ${dailyProteinGoal}g of protein.`;
+        const apiKey = "AIzaSyAEMGk8n6nSeAU73FL9Y-EQX7heHKrw388";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const payload = { contents: [{ parts: [{ text: userPrompt }] }] };
 
@@ -951,7 +1261,7 @@ export default function App() {
         }
     };
     const clearInsight = () => { setInsight(null); setInsightError(null); };
-    
+
     const handleLogout = () => {
         signOut(auth);
     }
@@ -982,7 +1292,9 @@ export default function App() {
                 <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                     <h1 className="text-3xl font-extrabold text-blue-500 tracking-tight">NutriScan AI</h1>
                     <div className="flex items-center gap-6">
-                        <StreakCounter streakData={streakData} />
+                         <button onClick={() => setIsStreakModalOpen(true)} className="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                            <StreakCounter streakData={streakData} />
+                        </button>
                         <button onClick={handleLogout} title="Log Out" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                             <LogOutIcon />
                         </button>
@@ -990,8 +1302,18 @@ export default function App() {
                 </div>
             </header>
             <main className="container mx-auto px-4 py-8 flex flex-col items-center max-w-2xl">
-                <CalorieProgressCircle totalCalories={totalCalories} dailyGoal={dailyGoal} onGoalChange={handleGoalChange} />
-                <div className="text-center mt-4 text-slate-400">
+                <NutritionDashboard
+                    totalCalories={totalCalories}
+                    dailyGoal={dailyGoal}
+                    onGoalChange={() => handleGoalChange(parseInt(prompt("Set new calorie goal:", dailyGoal), 10))}
+                    totalProtein={totalProtein}
+                    dailyProteinGoal={dailyProteinGoal}
+                    onProteinGoalChange={() => handleProteinGoalChange(parseInt(prompt("Set new protein goal (g):", dailyProteinGoal), 10))}
+                    todaysWaterIntake={todaysWaterIntake}
+                    dailyWaterGoal={dailyWaterGoal}
+                    onAddWater={handleAddWater}
+                />
+                <div className="text-center mt-6 text-slate-400">
                     Your maintenance level is <strong>{maintenanceCalories} kcal</strong>
                 </div>
                 {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
@@ -1004,8 +1326,9 @@ export default function App() {
             </main>
             <button onClick={() => setIsAddMealModalOpen(true)} className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-900/50 flex items-center justify-center hover:bg-blue-500 transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50" aria-label="Add new meal"><PlusIcon /></button>
             <AddMealModal isOpen={isAddMealModalOpen} onClose={() => setIsAddMealModalOpen(false)} onAddMeal={addMeal} />
+            <StreakModal isOpen={isStreakModalOpen} onClose={() => setIsStreakModalOpen(false)} streakData={streakData} />
             {surveyHistory && (
-                 <MonthlyCheckInModal 
+                 <MonthlyCheckInModal
                     isOpen={isCheckInModalOpen}
                     onClose={() => setIsCheckInModalOpen(false)}
                     onUpdate={handleCheckInUpdate}
@@ -1015,5 +1338,5 @@ export default function App() {
             <Toast message={toastMessage} />
         </div>
     );
-} 
+}
 

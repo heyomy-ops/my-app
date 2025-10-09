@@ -959,23 +959,22 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
         }
         setIsLoading(true);
         setError(null);
-        const apiKey = "AIzaSyAEMGk8n6nSeAU73FL9Y-EQX7heHKrw388";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const userPrompt = `Analyze the food in this image. Identify the primary food item. Return a JSON object with the item's name (as "mealName"), its estimated total calories (as "totalCalories"), its estimated total protein in grams (as "totalProtein"), and its estimated weight in grams (as "estimatedWeight"). Meal name should be a short, descriptive title. For example: "Bowl of Oatmeal with Berries".`;
-        const payload = {
-            contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: { type: "OBJECT", properties: { mealName: { type: "STRING" }, totalCalories: { type: "NUMBER" }, totalProtein: { type: "NUMBER" }, estimatedWeight: { type: "NUMBER"} }, required: ["mealName", "totalCalories", "totalProtein", "estimatedWeight"] }
-            }
-        };
+        
+        // This is the updated URL. It points to your Netlify function.
+        const apiUrl = `/api/getMealData`;
 
         try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch(apiUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ base64ImageData }) 
+            });
+
             if (!response.ok) {
                 const errorBody = await response.json();
-                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody.error?.message || 'Unknown error'}`);
+                throw new Error(`API Error: ${response.status} - ${errorBody.error || 'Unknown error'}`);
             }
+
             const result = await response.json();
             const candidate = result.candidates?.[0];
             if (candidate && candidate.content?.parts?.[0]?.text) {
@@ -1451,4 +1450,7 @@ export default function App() {
         </div>
     );
 }
+
+
+
 

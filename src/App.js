@@ -1340,13 +1340,24 @@ export default function App() {
         if (!meals || meals.length === 0) return;
         setIsInsightLoading(true); setInsight(null); setInsightError(null);
         const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal, ~${m.protein}g protein)`).join('\n');
-        const userPrompt = `Based on the following list of meals I ate today, provide a brief, one-paragraph nutritional analysis focusing on both calories and protein. Offer one positive insight and one simple, actionable suggestion for a healthier choice tomorrow. Keep the tone encouraging and friendly, like a helpful nutrition coach. Do not use markdown.\n\nHere are my meals:\n${mealSummary}\n\nMy daily goals are ${dailyGoal} kcal and ${dailyProteinGoal}g of protein.`;
-        const apiKey = "AIzaSyAEMGk8n6nSeAU73FL9Y-EQX7heHKrw388";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ parts: [{ text: userPrompt }] }] };
+        
+        // UPDATED: This now calls your new secure Netlify Function
+        const apiUrl = `/api/getMealInsights`;
+        
+        const payload = {
+            mealSummary,
+            dailyGoal,
+            dailyProteinGoal
+        };
 
         try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            // UPDATED: The fetch call now sends the data to your new function
+            const response = await fetch(apiUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            
             if (!response.ok) throw new Error("Failed to get a response from the AI.");
             const result = await response.json();
             const candidate = result.candidates?.[0];
@@ -1450,6 +1461,7 @@ export default function App() {
         </div>
     );
 }
+
 
 
 

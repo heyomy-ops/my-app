@@ -677,11 +677,13 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
 
 const CircularProgress = ({ value, goal, icon, label, unit }) => {
     const progress = goal > 0 ? Math.min((value / goal) * 100, 100) : 0;
-    const circumference = 15.9155 * 2 * Math.PI;
-    const strokeDashoffset = circumference - (progress / 100) * circumference;
+    
+    const iconClass = label === 'Water' 
+        ? 'text-sky-400 dark:text-sky-300' 
+        : 'text-text-secondary-light dark:text-text-secondary-dark';
 
     return (
-        <div className="relative flex flex-col items-center justify-center rounded-lg bg-card-light dark:bg-card-dark p-4 shadow-sm">
+        <div className="relative flex flex-col items-center justify-center rounded-lg bg-card-light dark:bg-card-dark p-2 shadow-sm h-full w-full">
             <svg className="h-24 w-24" viewBox="0 0 36 36">
                 <path
                     className="text-primary"
@@ -700,10 +702,11 @@ const CircularProgress = ({ value, goal, icon, label, unit }) => {
                     strokeWidth="2"
                 ></path>
             </svg>
-            <div className="absolute flex flex-col items-center">
-                <span className="material-symbols-outlined text-lg text-text-secondary-light dark:text-text-secondary-dark">{icon}</span>
-                <p className="text-lg font-bold text-text-main-light dark:text-text-main-dark">{value}{unit}</p>
-                <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{label}</p>
+            <div className="absolute flex flex-col items-center justify-center text-center">
+                <span className={`material-symbols-outlined text-lg ${iconClass}`}>{icon}</span>
+                <p className="text-xl font-bold text-text-main-light dark:text-text-main-dark leading-tight">{value}</p>
+                <p className="text-[11px] text-text-secondary-light dark:text-text-secondary-dark leading-tight">of {goal}{unit}</p>
+                <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-1">{label}</p>
             </div>
         </div>
     );
@@ -1062,6 +1065,51 @@ const MealInsightCard = ({ insight, isLoading, error, onClear }) => {
     );
 };
 
+const GoalRecommendationCard = ({ maintenanceCalories, dailyGoal, userGoal }) => {
+    if (!maintenanceCalories || !dailyGoal || !userGoal) {
+        return null; // Don't render if data isn't ready
+    }
+
+    let recommendationText = '';
+    let difference = 0;
+
+    switch (userGoal) {
+        case 'lose':
+            difference = maintenanceCalories - dailyGoal;
+            recommendationText = `This is a ${difference} kcal deficit from your maintenance level to promote steady weight loss.`;
+            break;
+        case 'gain':
+            difference = dailyGoal - maintenanceCalories;
+            recommendationText = `This is a ${difference} kcal surplus over your maintenance level to support muscle gain.`;
+            break;
+        case 'maintain':
+            recommendationText = 'This is your maintenance level, perfect for keeping your current weight.';
+            break;
+        default:
+            recommendationText = 'Your calorie goal is set to help you achieve your objective.';
+    }
+
+    return (
+        <section className="mt-8 w-full p-6 bg-card-light dark:bg-card-dark rounded-lg shadow-sm animate-fade-in-up">
+            <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-4 text-center">Your Calorie Plan</h2>
+            <div className="flex justify-around items-center text-center">
+                <div>
+                    <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">Maintenance</p>
+                    <p className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">{maintenanceCalories} <span className="text-lg">kcal</span></p>
+                </div>
+                <div className="text-blue-500 dark:text-blue-400 font-bold text-3xl">
+                    →
+                </div>
+                <div>
+                    <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark capitalize">{userGoal} Goal</p>
+                    <p className="text-2xl font-bold text-blue-500 dark:text-blue-400">{dailyGoal} <span className="text-lg">kcal</span></p>
+                </div>
+            </div>
+            <p className="mt-4 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark">{recommendationText}</p>
+        </section>
+    );
+};
+
 const Toast = ({ message }) => {
     if (!message) return null;
     return (
@@ -1410,10 +1458,19 @@ export default function App() {
                         </div>
                     </header>
                     <section className="mt-8 grid grid-cols-3 gap-4">
-                        <CircularProgress value={totalCalories} goal={dailyGoal} icon="local_fire_department" label="Calories" unit="" />
+                        <CircularProgress value={totalCalories} goal={dailyGoal} icon="local_fire_department" label="Calories" unit="kcal" />
                         <CircularProgress value={totalProtein} goal={dailyProteinGoal} icon="restaurant" label="Protein" unit="g" />
-                        <CircularProgress value={todaysWaterIntake/1000} goal={dailyWaterGoal/1000} icon="water_drop" label="Water" unit="L" />
+                        <button onClick={handleAddWater} className="w-full h-full">
+                           <CircularProgress value={(todaysWaterIntake/1000).toFixed(1)} goal={(dailyWaterGoal/1000).toFixed(1)} icon="water_drop" label="Water" unit="L" />
+                        </button>
                     </section>
+                    
+                    <GoalRecommendationCard 
+                        maintenanceCalories={maintenanceCalories} 
+                        dailyGoal={dailyGoal} 
+                        userGoal={surveyHistory?.data?.goal} 
+                    />
+
                      {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
                         <div className="text-center mt-6 animate-fade-in-up">
                             <button onClick={debounce(getMealInsights, 500)} disabled={isInsightLoading} className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50 hover:shadow-xl"><SparklesIcon /><span className="ml-2">✨ Get Meal Insights</span></button>
@@ -1453,8 +1510,4 @@ export default function App() {
         </div>
     );
 }
-
-
-
-
 

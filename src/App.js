@@ -675,77 +675,35 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
     );
 };
 
+const CircularProgress = ({ value, goal, icon, label, unit }) => {
+    const progress = goal > 0 ? Math.min((value / goal) * 100, 100) : 0;
+    const circumference = 15.9155 * 2 * Math.PI;
+    const strokeDashoffset = circumference - (progress / 100) * circumference;
 
-const NutritionDashboard = ({ totalCalories, dailyGoal, onGoalChange, totalProtein, dailyProteinGoal, onProteinGoalChange, todaysWaterIntake, dailyWaterGoal, onAddWater }) => {
-    const calorieProgress = dailyGoal > 0 ? Math.min((totalCalories / dailyGoal) * 100, 100) : 0;
-    const proteinProgress = dailyProteinGoal > 0 ? Math.min((totalProtein / dailyProteinGoal) * 100, 100) : 0;
-    const waterProgress = dailyWaterGoal > 0 ? Math.min((todaysWaterIntake / dailyWaterGoal) * 100, 100) : 0;
-    
     return (
-        <div className="w-full bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg mb-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Calorie Section */}
-                <div className="flex flex-col">
-                   <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">Calories</h3>
-                   <div className="flex items-baseline gap-2">
-                       <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{totalCalories}</span>
-                       <span
-                           className="text-lg text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 cursor-pointer"
-                           onClick={onGoalChange}
-                           title="Click to change goal"
-                       >
-                           / {dailyGoal} kcal
-                       </span>
-                   </div>
-                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-3">
-                       <div
-                           className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
-                           style={{ width: `${calorieProgress}%` }}
-                       ></div>
-                   </div>
-                </div>
-
-                {/* Protein Section */}
-                <div className="flex flex-col">
-                   <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">Protein</h3>
-                   <div className="flex items-baseline gap-2">
-                       <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{totalProtein}</span>
-                       <span
-                           className="text-lg text-slate-500 dark:text-slate-400 hover:text-sky-500 dark:hover:text-sky-400 cursor-pointer"
-                           onClick={onProteinGoalChange}
-                           title="Click to change protein goal"
-                       >
-                           / {dailyProteinGoal} g
-                       </span>
-                   </div>
-                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-3">
-                       <div
-                           className="bg-sky-500 h-2.5 rounded-full transition-all duration-500"
-                           style={{ width: `${proteinProgress}%` }}
-                       ></div>
-                   </div>
-                </div>
-                
-                 {/* Water Section */}
-                <div className="flex flex-col">
-                   <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">Water</h3>
-                   <div className="flex items-baseline justify-between">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{todaysWaterIntake}</span>
-                            <span className="text-lg text-slate-500 dark:text-slate-400">/ {dailyWaterGoal} ml</span>
-                        </div>
-                        <button onClick={onAddWater} className="bg-blue-100 dark:bg-blue-500/20 text-blue-500 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-500/40 rounded-full p-2 flex items-center justify-center transition-colors">
-                            <PlusIcon />
-                        </button>
-                   </div>
-                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-3">
-                       <div
-                           className="bg-cyan-500 h-2.5 rounded-full transition-all duration-500"
-                           style={{ width: `${waterProgress}%` }}
-                       ></div>
-                   </div>
-                </div>
-
+        <div className="relative flex flex-col items-center justify-center rounded-lg bg-card-light dark:bg-card-dark p-4 shadow-sm">
+            <svg className="h-24 w-24" viewBox="0 0 36 36">
+                <path
+                    className="text-primary"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                ></path>
+                <path
+                    className="text-gray-200 dark:text-gray-700/50"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeDasharray={`${progress}, 100`}
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                ></path>
+            </svg>
+            <div className="absolute flex flex-col items-center">
+                <span className="material-symbols-outlined text-lg text-text-secondary-light dark:text-text-secondary-dark">{icon}</span>
+                <p className="text-lg font-bold text-text-main-light dark:text-text-main-dark">{value}{unit}</p>
+                <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{label}</p>
             </div>
         </div>
     );
@@ -757,17 +715,29 @@ const StreakCounter = ({ streakData }) => {
 
     React.useEffect(() => {
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         let streak = 0;
-        for (let i = 0; ; i++) {
-            const date = new Date();
-            date.setDate(today.getDate() - i);
-            const dateKey = date.toISOString().split('T')[0];
-            if (streakData[dateKey]) {
+        let loopDate = new Date(today);
+        const todayKey = today.toISOString().split('T')[0];
+
+        // If today isn't done, the streak is based on days ending yesterday.
+        if (!streakData[todayKey]) {
+            loopDate.setDate(today.getDate() - 1);
+        }
+
+        // Loop backwards from the starting date (today or yesterday)
+        for (let i = 0; i < 365 * 5; i++) {
+            const checkDate = new Date(loopDate);
+            checkDate.setDate(loopDate.getDate() - i);
+            const checkDateKey = checkDate.toISOString().split('T')[0];
+
+            if (streakData[checkDateKey]) {
                 streak++;
             } else {
-                if (i > 0) break;
+                // End of consecutive streak
+                break;
             }
-            if (i > 365 * 5) break;
         }
         setCurrentStreak(streak);
     }, [streakData]);
@@ -837,32 +807,30 @@ const StreakModal = ({ isOpen, onClose, streakData }) => {
 };
 
 const MealList = ({ meals, onRemove }) => (
-    <div className="w-full mt-8 space-y-4">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Today's Meals</h2>
+    <section className="mt-8 w-full">
+        <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark">Today's Meals 🍲</h2>
         {meals.length === 0 ? (
-            <p className="text-center text-slate-500 dark:text-slate-400 py-4">No meals logged yet. Add one to get started!</p>
+            <p className="text-center text-text-secondary-light dark:text-text-secondary-dark py-4">No meals logged yet. Add one to get started!</p>
         ) : (
-            <ul className="space-y-3">
+            <div className="mt-4 space-y-4">
                 {meals.map((meal) => (
-                    <li key={meal.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors animate-fade-in-up">
-                        <div className="flex items-center space-x-4">
-                             {meal.image && <img src={meal.image} alt={meal.name} className="w-16 h-16 object-cover rounded-lg" />}
-                            <div>
-                                <p className="font-semibold text-slate-800 dark:text-slate-100 capitalize">{meal.name}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {meal.calories} kcal
-                                    <span className="mx-2 text-slate-400 dark:text-slate-600">|</span>
-                                    {meal.protein}g protein</p>
-                            </div>
+                    <div key={meal.id} className="flex items-center gap-4 rounded-lg bg-card-light dark:bg-card-dark p-4 shadow-sm animate-fade-in-up">
+                        <div 
+                            className="h-14 w-14 flex-shrink-0 rounded-lg bg-cover bg-center" 
+                            style={{backgroundImage: `url(${meal.image || 'https://placehold.co/600x400/234C6A/F5F3F2?text=Meal'})`}}
+                        ></div>
+                        <div className="flex-grow">
+                            <p className="font-medium text-text-main-light dark:text-text-main-dark capitalize">{meal.name}</p>
+                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{meal.calories} kcal, {meal.protein}g protein</p>
                         </div>
                         <button onClick={() => onRemove(meal)} className="p-2 text-slate-500 rounded-full hover:bg-red-500/10 hover:text-red-400 transition-colors">
                             <XIcon />
                         </button>
-                    </li>
+                    </div>
                 ))}
-            </ul>
+            </div>
         )}
-    </div>
+    </section>
 );
 
 const Loader = () => (
@@ -1115,8 +1083,7 @@ const FirebaseLoadingScreen = () => (
 export default function App() {
     const getTodaysDateKey = () => new Date().toISOString().split('T')[0];
 
-    // Theme state
-    const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'dark');
+    // Theme state is removed, dark mode is now default
     
     // Firebase and Auth state
     const [user, setUser] = React.useState(null);
@@ -1141,21 +1108,20 @@ export default function App() {
     const [isInsightLoading, setIsInsightLoading] = React.useState(false);
     const [insightError, setInsightError] = React.useState(null);
     const [toastMessage, setToastMessage] = React.useState('');
+    const [currentDate, setCurrentDate] = React.useState('');
+    
+    React.useEffect(() => {
+        const today = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        setCurrentDate(today.toLocaleDateString(undefined, options));
+    }, []);
 
     // --- Theme Management ---
-    const toggleTheme = () => {
-        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
-
     React.useEffect(() => {
+        // Force dark mode by default
         const root = window.document.documentElement;
-        if (theme === 'light') {
-            root.classList.remove('dark');
-        } else {
-            root.classList.add('dark');
-        }
-        localStorage.setItem('theme', theme);
-    }, [theme]);
+        root.classList.add('dark');
+    }, []);
 
     // Effect to control body scroll when modals are open
     React.useEffect(() => {
@@ -1341,7 +1307,6 @@ export default function App() {
         setIsInsightLoading(true); setInsight(null); setInsightError(null);
         const mealSummary = meals.map(m => `- ${m.name} (~${m.calories} kcal, ~${m.protein}g protein)`).join('\n');
         
-        // UPDATED: This now calls your new secure Netlify Function
         const apiUrl = `/api/getMealInsights`;
         
         const payload = {
@@ -1351,7 +1316,6 @@ export default function App() {
         };
 
         try {
-            // UPDATED: The fetch call now sends the data to your new function
             const response = await fetch(apiUrl, { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
@@ -1384,69 +1348,97 @@ export default function App() {
     if (!surveyHistory) return <OnboardingSurvey onComplete={handleSurveyComplete} />;
 
     return (
-        <div className="bg-slate-100 dark:bg-slate-900 min-h-screen font-sans text-slate-800 dark:text-slate-300">
+        <div className="bg-background-light dark:bg-background-dark font-display text-text-main-light dark:text-text-main-dark min-h-screen">
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+                
+                :root {
+                    --primary: #000000;
+                    --background-light: #f7f7f7;
+                    --background-dark: #191919;
+                    --card-light: #FFFFFF;
+                    --card-dark: #234C6A;
+                    --text-main-light: #1B3C53;
+                    --text-main-dark: #F5F3F2;
+                    --text-secondary-light: #456882;
+                    --text-secondary-dark: #D2C1B6;
+                    --accent: #456882;
+                }
                 html.dark { color-scheme: dark; }
-                body { font-family: 'Inter', sans-serif; }
+
+                body { 
+                    font-family: 'Inter', sans-serif;
+                    min-height: 100dvh;
+                }
+                .bg-background-light { background-color: var(--background-light); }
+                .dark .bg-background-dark { background-color: var(--background-dark); }
+                .bg-card-light { background-color: var(--card-light); }
+                .dark .bg-card-dark { background-color: var(--card-dark); }
+                .text-text-main-light { color: var(--text-main-light); }
+                .dark .text-text-main-dark { color: var(--text-main-dark); }
+                .text-text-secondary-light { color: var(--text-secondary-light); }
+                .dark .text-text-secondary-dark { color: var(--text-secondary-dark); }
+                .text-primary { color: var(--primary); }
+                .dark .text-primary { color: var(--text-main-dark); }
+                .text-accent { color: var(--accent); }
+                .bg-accent { background-color: var(--accent); }
+
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
                 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-                ::-webkit-scrollbar { width: 8px; }
-                ::-webkit-scrollbar-track { background: #E2E8F0; }
-                .dark ::-webkit-scrollbar-track { background: #1E293B; }
-                ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 4px; }
-                .dark ::-webkit-scrollbar-thumb { background: #334155; }
-                ::-webkit-scrollbar-thumb:hover { background: #64748B; }
-                .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+                
                 @keyframes fade-in-scale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
                 .animate-fade-in-scale { animation: fade-in-scale 0.3s ease-out forwards; }
                 @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
-                .animate-pulse { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-                @keyframes pulse {
-                    50% { opacity: .5; }
-                }
             `}</style>
-            <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
-                <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                    <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Hello, {userName || 'User'}!</h1>
-                    <div className="flex items-center gap-2">
-                         <button onClick={() => setIsStreakModalOpen(true)} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                            <StreakCounter streakData={streakData} />
-                        </button>
-                        <button onClick={toggleTheme} title="Toggle Theme" className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                            {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-                        </button>
-                        <button onClick={handleLogout} title="Log Out" className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                            <LogOutIcon />
+
+            <div className="mx-auto flex h-auto min-h-screen w-full max-w-md flex-col justify-between">
+                <div className="flex-grow p-6">
+                    <header className="flex items-center justify-between">
+                        <div className="text-left">
+                            <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Hello, {userName.split(' ')[0] || 'User'} 👋</h1>
+                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{currentDate}</p>
+                        </div>
+                         <div className="flex items-center gap-2">
+                            <button onClick={() => setIsStreakModalOpen(true)} className="flex items-center gap-2 p-2 rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
+                                <StreakCounter streakData={streakData} />
+                            </button>
+                            <button onClick={handleLogout} title="Log Out" className="flex h-12 w-12 items-center justify-center rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
+                               <LogOutIcon />
+                            </button>
+                        </div>
+                    </header>
+                    <section className="mt-8 grid grid-cols-3 gap-4">
+                        <CircularProgress value={totalCalories} goal={dailyGoal} icon="local_fire_department" label="Calories" unit="" />
+                        <CircularProgress value={totalProtein} goal={dailyProteinGoal} icon="restaurant" label="Protein" unit="g" />
+                        <CircularProgress value={todaysWaterIntake/1000} goal={dailyWaterGoal/1000} icon="water_drop" label="Water" unit="L" />
+                    </section>
+                     {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
+                        <div className="text-center mt-6 animate-fade-in-up">
+                            <button onClick={debounce(getMealInsights, 500)} disabled={isInsightLoading} className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50 hover:shadow-xl"><SparklesIcon /><span className="ml-2">✨ Get Meal Insights</span></button>
+                        </div>
+                    )}
+                    <MealInsightCard insight={insight} isLoading={isInsightLoading} error={insightError} onClear={clearInsight} />
+                    <MealList meals={meals} onRemove={removeMeal} />
+                </div>
+                <div className="sticky bottom-0">
+                    <div className="absolute bottom-20 right-6">
+                        <button onClick={() => setIsAddMealModalOpen(true)} className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-lg">
+                            <span className="material-symbols-outlined text-3xl"> photo_camera </span>
                         </button>
                     </div>
+                    <nav className="border-t border-gray-200/50 bg-background-light/80 dark:border-gray-700/50 dark:bg-background-dark/80 backdrop-blur-sm">
+                        <div className="mx-auto flex h-20 max-w-md items-center justify-around px-4">
+                            <button className="flex flex-col items-center text-accent transition-transform hover:scale-110"><span className="material-symbols-outlined"> home </span><span className="text-xs font-medium">Home</span></button>
+                            <button className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> book </span><span className="text-xs font-medium">Diary</span></button>
+                            <button className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> bar_chart </span><span className="text-xs font-medium">Progress</span></button>
+                            <button onClick={() => setIsStreakModalOpen(true)} className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> person </span><span className="text-xs font-medium">Profile</span></button>
+                        </div>
+                    </nav>
                 </div>
-            </header>
-            <main className="container mx-auto px-4 py-8 flex flex-col items-center max-w-2xl">
-                <NutritionDashboard
-                    totalCalories={totalCalories}
-                    dailyGoal={dailyGoal}
-                    onGoalChange={() => handleGoalChange(parseInt(prompt("Set new calorie goal:", dailyGoal), 10))}
-                    totalProtein={totalProtein}
-                    dailyProteinGoal={dailyProteinGoal}
-                    onProteinGoalChange={() => handleProteinGoalChange(parseInt(prompt("Set new protein goal (g):", dailyProteinGoal), 10))}
-                    todaysWaterIntake={todaysWaterIntake}
-                    dailyWaterGoal={dailyWaterGoal}
-                    onAddWater={handleAddWater}
-                />
-                <div className="text-center mt-6 text-slate-500 dark:text-slate-400">
-                    Your maintenance level is <strong>{maintenanceCalories} kcal</strong>
-                </div>
-                {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
-                    <div className="text-center mt-6 animate-fade-in-up">
-                        <button onClick={debounce(getMealInsights, 500)} disabled={isInsightLoading} className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50 hover:shadow-xl"><SparklesIcon /><span className="ml-2">✨ Get Meal Insights</span></button>
-                    </div>
-                )}
-                <MealInsightCard insight={insight} isLoading={isInsightLoading} error={insightError} onClear={clearInsight} />
-                <MealList meals={meals} onRemove={removeMeal} />
-            </main>
-            <button onClick={() => setIsAddMealModalOpen(true)} className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-900/50 flex items-center justify-center hover:bg-blue-500 transition-all transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50" aria-label="Add new meal"><PlusIcon /></button>
+            </div>
+
             <AddMealModal isOpen={isAddMealModalOpen} onClose={() => setIsAddMealModalOpen(false)} onAddMeal={addMeal} />
             <StreakModal isOpen={isStreakModalOpen} onClose={() => setIsStreakModalOpen(false)} streakData={streakData} />
             {surveyHistory && (

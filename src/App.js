@@ -1513,7 +1513,7 @@ export default function App() {
     const renderPage = () => {
         switch(activePage) {
             case 'progress':
-                return <ProgressPage userName={userName} historicalData={historicalData} />;
+                return <ProgressPage userName={userName} historicalData={historicalData} dailyGoal={dailyGoal} dailyProteinGoal={dailyProteinGoal} dailyWaterGoal={dailyWaterGoal}/>;
             case 'diary':
                 return <DiaryPage userName={userName} meals={meals} removeMeal={removeMeal} />;
             case 'home':

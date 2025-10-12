@@ -2,7 +2,8 @@ import React from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
+import ProgressPage from './pages/ProgressPage.js';
 
 // --- Helper & Utility Functions ---
 
@@ -1127,11 +1128,108 @@ const FirebaseLoadingScreen = () => (
 );
 
 
+// --- Page Components ---
+
+const HomePage = ({
+    userName, currentDate, setIsStreakModalOpen, handleLogout, streakData, 
+    totalCalories, dailyGoal, totalProtein, dailyProteinGoal, todaysWaterIntake, 
+    dailyWaterGoal, handleAddWater, maintenanceCalories, surveyHistory, 
+    getMealInsights, isInsightLoading, insight, insightError, clearInsight, 
+    meals, removeMeal
+}) => {
+    return (
+        <div className="flex-grow p-6">
+            <header className="flex items-center justify-between">
+                <div className="text-left">
+                    <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Hello, {userName.split(' ')[0] || 'User'} 👋</h1>
+                    <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{currentDate}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setIsStreakModalOpen(true)} className="flex items-center gap-2 p-2 rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
+                        <StreakCounter streakData={streakData} />
+                    </button>
+                    <button onClick={handleLogout} title="Log Out" className="flex h-12 w-12 items-center justify-center rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
+                        <LogOutIcon />
+                    </button>
+                </div>
+            </header>
+            <section className="mt-8 grid grid-cols-3 gap-4">
+                <CircularProgress value={totalCalories} goal={dailyGoal} icon="local_fire_department" label="Calories" unit="kcal" />
+                <CircularProgress value={totalProtein} goal={dailyProteinGoal} icon="restaurant" label="Protein" unit="g" />
+                <button onClick={handleAddWater} className="w-full h-full">
+                    <CircularProgress value={(todaysWaterIntake / 1000).toFixed(1)} goal={(dailyWaterGoal / 1000).toFixed(1)} icon="water_drop" label="Water" unit="L" />
+                </button>
+            </section>
+
+            <GoalRecommendationCard
+                maintenanceCalories={maintenanceCalories}
+                dailyGoal={dailyGoal}
+                userGoal={surveyHistory?.data?.goal}
+            />
+
+            {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
+                <div className="text-center mt-6 animate-fade-in-up">
+                    <button onClick={debounce(getMealInsights, 500)} disabled={isInsightLoading} className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50 hover:shadow-xl"><SparklesIcon /><span className="ml-2">✨ Get Meal Insights</span></button>
+                </div>
+            )}
+            <MealInsightCard insight={insight} isLoading={isInsightLoading} error={insightError} onClear={clearInsight} />
+            <MealList meals={meals} onRemove={removeMeal} />
+        </div>
+    );
+};
+
+const DiaryPage = ({ userName, meals, removeMeal }) => {
+     return (
+        <div className="flex-grow p-6">
+            <header className="flex items-center justify-between mb-8">
+                <div className="text-left">
+                    <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Your Diary</h1>
+                    <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">A log of your daily meals.</p>
+                </div>
+            </header>
+            <MealList meals={meals} onRemove={removeMeal} />
+        </div>
+    );
+};
+
+// --- Navigation Component ---
+
+const NavigationBar = ({ activePage, setActivePage, onCameraClick, onProfileClick }) => {
+    return (
+        <div className="sticky bottom-0">
+            <div className="absolute bottom-20 right-6">
+                <button onClick={onCameraClick} className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-lg transition-transform hover:scale-110 active:scale-95">
+                    <span className="material-symbols-outlined text-3xl">photo_camera</span>
+                </button>
+            </div>
+            <nav className="border-t border-gray-200/50 bg-background-light/80 dark:border-gray-700/50 dark:bg-background-dark/80 backdrop-blur-sm">
+                <div className="mx-auto flex h-20 max-w-md items-center justify-around px-4">
+                    <button onClick={() => setActivePage('home')} className={`flex flex-col items-center w-16 transition-transform hover:scale-110 ${activePage === 'home' ? 'text-accent' : 'text-text-secondary-light dark:text-text-secondary-dark'}`}>
+                        <span className="material-symbols-outlined">home</span>
+                        <span className="text-xs font-medium">Home</span>
+                    </button>
+                    <button onClick={() => setActivePage('diary')} className={`flex flex-col items-center w-16 transition-transform hover:scale-110 ${activePage === 'diary' ? 'text-accent' : 'text-text-secondary-light dark:text-text-secondary-dark'}`}>
+                        <span className="material-symbols-outlined">book</span>
+                        <span className="text-xs font-medium">Diary</span>
+                    </button>
+                    <button onClick={() => setActivePage('progress')} className={`flex flex-col items-center w-16 transition-transform hover:scale-110 ${activePage === 'progress' ? 'text-accent' : 'text-text-secondary-light dark:text-text-secondary-dark'}`}>
+                        <span className="material-symbols-outlined">bar_chart</span>
+                        <span className="text-xs font-medium">Progress</span>
+                    </button>
+                    <button onClick={onProfileClick} className="flex flex-col items-center w-16 text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110">
+                        <span className="material-symbols-outlined">person</span>
+                        <span className="text-xs font-medium">Profile</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    );
+};
+
+
 // --- Main App Component ---
 export default function App() {
     const getTodaysDateKey = () => new Date().toISOString().split('T')[0];
-
-    // Theme state is removed, dark mode is now default
     
     // Firebase and Auth state
     const [user, setUser] = React.useState(null);
@@ -1147,8 +1245,10 @@ export default function App() {
     const [meals, setMeals] = React.useState([]);
     const [todaysWaterIntake, setTodaysWaterIntake] = React.useState(0);
     const [streakData, setStreakData] = React.useState({});
+    const [historicalData, setHistoricalData] = React.useState(null);
 
     // UI State
+    const [activePage, setActivePage] = React.useState('home');
     const [isAddMealModalOpen, setIsAddMealModalOpen] = React.useState(false);
     const [isCheckInModalOpen, setIsCheckInModalOpen] = React.useState(false);
     const [isStreakModalOpen, setIsStreakModalOpen] = React.useState(false);
@@ -1164,11 +1264,9 @@ export default function App() {
         setCurrentDate(today.toLocaleDateString(undefined, options));
     }, []);
 
-    // --- Theme Management ---
+    // Force dark mode by default
     React.useEffect(() => {
-        // Force dark mode by default
-        const root = window.document.documentElement;
-        root.classList.add('dark');
+        document.documentElement.classList.add('dark');
     }, []);
 
     // Effect to control body scroll when modals are open
@@ -1205,6 +1303,39 @@ export default function App() {
         const userId = user.uid;
         const todayKey = getTodaysDateKey();
         
+        // Fetch historical data for charts
+        const fetchHistoricalData = async () => {
+            const dateKeys = Array.from({ length: 10 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                return d.toISOString().split('T')[0];
+            }).reverse();
+
+            const promises = dateKeys.map(async (dateKey) => {
+                const mealsRef = doc(db, `artifacts/${appId}/users/${userId}/dailyMeals`, dateKey);
+                const waterRef = doc(db, `artifacts/${appId}/users/${userId}/dailyWater`, dateKey);
+                
+                const [mealsSnap, waterSnap] = await Promise.all([getDoc(mealsRef), getDoc(waterRef)]);
+
+                let calories = 0;
+                let protein = 0;
+                if (mealsSnap.exists()) {
+                    const mealsData = mealsSnap.data().meals || [];
+                    calories = mealsData.reduce((sum, meal) => sum + meal.calories, 0);
+                    protein = mealsData.reduce((sum, meal) => sum + meal.protein, 0);
+                }
+
+                const water = waterSnap.exists() ? waterSnap.data().intake || 0 : 0;
+
+                return { date: dateKey, calories, protein, water };
+            });
+
+            const results = await Promise.all(promises);
+            setHistoricalData(results);
+        };
+
+        fetchHistoricalData();
+
         const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/userProfile`, 'settings');
         const unsubscribeProfile = onSnapshot(userProfileRef, (docSnap) => {
             if (docSnap.exists()) {
@@ -1294,18 +1425,6 @@ export default function App() {
         await setDoc(waterRef, { intake: increment(100) }, { merge: true });
     };
     
-    const handleGoalChange = (newGoal) => {
-         if (!user || isNaN(newGoal) || newGoal <= 0) return;
-         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
-         updateDoc(userProfileRef, { dailyGoal: newGoal });
-    };
-
-    const handleProteinGoalChange = (newGoal) => {
-         if (!user || isNaN(newGoal) || newGoal <= 0) return;
-         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
-         updateDoc(userProfileRef, { dailyProteinGoal: newGoal });
-    };
-
     const updateStreakData = async () => {
         if (!user) return;
         const todayKey = getTodaysDateKey();
@@ -1391,12 +1510,47 @@ export default function App() {
         signOut(auth);
     }
 
+    const renderPage = () => {
+        switch(activePage) {
+            case 'progress':
+                return <ProgressPage userName={userName} historicalData={historicalData} />;
+            case 'diary':
+                return <DiaryPage userName={userName} meals={meals} removeMeal={removeMeal} />;
+            case 'home':
+            default:
+                return <HomePage 
+                    userName={userName}
+                    currentDate={currentDate}
+                    setIsStreakModalOpen={setIsStreakModalOpen}
+                    handleLogout={handleLogout}
+                    streakData={streakData}
+                    totalCalories={totalCalories}
+                    dailyGoal={dailyGoal}
+                    totalProtein={totalProtein}
+                    dailyProteinGoal={dailyProteinGoal}
+                    todaysWaterIntake={todaysWaterIntake}
+                    dailyWaterGoal={dailyWaterGoal}
+                    handleAddWater={handleAddWater}
+                    maintenanceCalories={maintenanceCalories}
+                    surveyHistory={surveyHistory}
+                    getMealInsights={getMealInsights}
+                    isInsightLoading={isInsightLoading}
+                    insight={insight}
+                    insightError={insightError}
+                    clearInsight={clearInsight}
+                    meals={meals}
+                    removeMeal={removeMeal}
+                />;
+        }
+    }
+
     if (!isFirebaseReady || surveyHistory === undefined) return <FirebaseLoadingScreen />;
     if (!user) return <AuthScreen />;
     if (!surveyHistory) return <OnboardingSurvey onComplete={handleSurveyComplete} />;
 
     return (
         <div className="bg-background-light dark:bg-background-dark font-display text-text-main-light dark:text-text-main-dark min-h-screen">
+             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
                 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
@@ -1442,58 +1596,14 @@ export default function App() {
             `}</style>
 
             <div className="mx-auto flex h-auto min-h-screen w-full max-w-md flex-col justify-between">
-                <div className="flex-grow p-6">
-                    <header className="flex items-center justify-between">
-                        <div className="text-left">
-                            <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Hello, {userName.split(' ')[0] || 'User'} 👋</h1>
-                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{currentDate}</p>
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <button onClick={() => setIsStreakModalOpen(true)} className="flex items-center gap-2 p-2 rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
-                                <StreakCounter streakData={streakData} />
-                            </button>
-                            <button onClick={handleLogout} title="Log Out" className="flex h-12 w-12 items-center justify-center rounded-full bg-card-light dark:bg-card-dark text-text-secondary-light dark:text-text-secondary-dark">
-                               <LogOutIcon />
-                            </button>
-                        </div>
-                    </header>
-                    <section className="mt-8 grid grid-cols-3 gap-4">
-                        <CircularProgress value={totalCalories} goal={dailyGoal} icon="local_fire_department" label="Calories" unit="kcal" />
-                        <CircularProgress value={totalProtein} goal={dailyProteinGoal} icon="restaurant" label="Protein" unit="g" />
-                        <button onClick={handleAddWater} className="w-full h-full">
-                           <CircularProgress value={(todaysWaterIntake/1000).toFixed(1)} goal={(dailyWaterGoal/1000).toFixed(1)} icon="water_drop" label="Water" unit="L" />
-                        </button>
-                    </section>
-                    
-                    <GoalRecommendationCard 
-                        maintenanceCalories={maintenanceCalories} 
-                        dailyGoal={dailyGoal} 
-                        userGoal={surveyHistory?.data?.goal} 
-                    />
-
-                     {meals.length > 0 && !isInsightLoading && !insight && !insightError && (
-                        <div className="text-center mt-6 animate-fade-in-up">
-                            <button onClick={debounce(getMealInsights, 500)} disabled={isInsightLoading} className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50 hover:shadow-xl"><SparklesIcon /><span className="ml-2">✨ Get Meal Insights</span></button>
-                        </div>
-                    )}
-                    <MealInsightCard insight={insight} isLoading={isInsightLoading} error={insightError} onClear={clearInsight} />
-                    <MealList meals={meals} onRemove={removeMeal} />
-                </div>
-                <div className="sticky bottom-0">
-                    <div className="absolute bottom-20 right-6">
-                        <button onClick={() => setIsAddMealModalOpen(true)} className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-lg">
-                            <span className="material-symbols-outlined text-3xl"> photo_camera </span>
-                        </button>
-                    </div>
-                    <nav className="border-t border-gray-200/50 bg-background-light/80 dark:border-gray-700/50 dark:bg-background-dark/80 backdrop-blur-sm">
-                        <div className="mx-auto flex h-20 max-w-md items-center justify-around px-4">
-                            <button className="flex flex-col items-center text-accent transition-transform hover:scale-110"><span className="material-symbols-outlined"> home </span><span className="text-xs font-medium">Home</span></button>
-                            <button className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> book </span><span className="text-xs font-medium">Diary</span></button>
-                            <button className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> bar_chart </span><span className="text-xs font-medium">Progress</span></button>
-                            <button onClick={() => setIsStreakModalOpen(true)} className="flex flex-col items-center text-text-secondary-light dark:text-text-secondary-dark transition-transform hover:scale-110"><span className="material-symbols-outlined"> person </span><span className="text-xs font-medium">Profile</span></button>
-                        </div>
-                    </nav>
-                </div>
+                {renderPage()}
+                
+                <NavigationBar 
+                    activePage={activePage} 
+                    setActivePage={setActivePage} 
+                    onCameraClick={() => setIsAddMealModalOpen(true)}
+                    onProfileClick={() => setIsStreakModalOpen(true)}
+                />
             </div>
 
             <AddMealModal isOpen={isAddMealModalOpen} onClose={() => setIsAddMealModalOpen(false)} onAddMeal={addMeal} />

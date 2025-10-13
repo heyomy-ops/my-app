@@ -1296,6 +1296,10 @@ export default function App() {
     }, []);
 
     React.useEffect(() => {
+        if (!isFirebaseReady) {
+            return;
+        }
+
         if (!user) {
             setSurveyHistory(null);
             return;
@@ -1368,7 +1372,7 @@ export default function App() {
             unsubscribeWater();
         };
 
-    }, [user]);
+    }, [user, isFirebaseReady]);
 
     const handleSurveyComplete = async ({ name, goal, maintenance, proteinGoal, waterGoal, initialSurvey }) => {
         if (!user) return;
@@ -1620,4 +1624,5 @@ export default function App() {
         </div>
     );
 }
+
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import ProgressPage from './pages/ProgressPage.js';
 
@@ -16,6 +16,68 @@ const debounce = (func, delay) => {
         }, delay);
     };
 };
+
+// --- Nutrition Calculation Helpers ---
+
+const calculateAge = (dob) => {
+    if (!dob || !dob.year || !dob.month || !dob.day) return 0;
+    const birthDate = new Date(dob.year, dob.month - 1, dob.day);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+};
+
+const calculateBMR = (data) => {
+    // Uses DOB for new users, falls back to stored age for existing users
+    const age = data.dob ? calculateAge(data.dob) : data.age;
+    const { gender, weight, height } = data;
+    if (gender === 'male') return 10 * weight + 6.25 * height - 5 * age + 5;
+    return 10 * weight + 6.25 * height - 5 * age - 161;
+};
+
+const calculateProteinGoal = (data) => {
+    const { weight, activityLevel } = data;
+    const multipliers = { sedentary: 0.8, light: 1.2, moderate: 1.4, active: 1.6 };
+    return Math.round((weight * multipliers[activityLevel]) / 5) * 5;
+};
+
+const calculateWaterGoal = (data) => {
+    const { weight, activityLevel } = data;
+    let baseIntake = weight * 35;
+    const activityBonus = { sedentary: 0, light: 300, moderate: 600, active: 900 };
+    const totalIntake = baseIntake + activityBonus[activityLevel];
+    return Math.round(totalIntake / 50) * 50;
+};
+
+const calculateMaintenanceCalories = (data) => {
+    const bmr = calculateBMR(data);
+    const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
+    return Math.round(bmr * activityMultipliers[data.activityLevel]);
+};
+
+const calculateFinalGoal = (data) => {
+    const maintenance = calculateMaintenanceCalories(data);
+    // Uses weeklyRate for new users, falls back to hardcoded values for existing users
+    if (data.weeklyRate && (data.goal === 'lose' || data.goal === 'gain')) {
+        const dailyCalorieChange = Math.round((data.weeklyRate * 7700) / 7);
+        switch (data.goal) {
+            case 'lose': return Math.round((maintenance - dailyCalorieChange) / 10) * 10;
+            case 'gain': return Math.round((maintenance + dailyCalorieChange) / 10) * 10;
+        }
+    } else { // Fallback for old users or 'maintain' goal
+        switch (data.goal) {
+            case 'lose': return Math.round((maintenance - 500) / 10) * 10;
+            case 'gain': return Math.round((maintenance + 300) / 10) * 10;
+            default: return Math.round(maintenance / 10) * 10;
+        }
+    }
+    return Math.round(maintenance / 10) * 10; // Default case
+};
+
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -158,22 +220,15 @@ const NumberScroller = ({ value, onChange, min, max }) => {
 
 
 const AuthScreen = () => {
-    const [isLogin, setIsLogin] = React.useState(true);
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
     const [error, setError] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleGoogleSignIn = async () => {
         setIsLoading(true);
         setError('');
+        const provider = new GoogleAuthProvider();
         try {
-            if (isLogin) {
-                await signInWithEmailAndPassword(auth, email, password);
-            } else {
-                await createUserWithEmailAndPassword(auth, email, password);
-            }
+            await signInWithPopup(auth, provider);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -188,44 +243,22 @@ const AuthScreen = () => {
                     <h1 className="text-4xl font-extrabold text-blue-500 tracking-tight">NutriScan AI</h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-2">Your personal AI-powered nutrition coach.</p>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 text-center mb-6">{isLogin ? 'Log In' : 'Sign Up'}</h2>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="text-sm font-bold text-slate-600 dark:text-slate-400 block mb-2">Email Address</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full p-3 bg-slate-100 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-slate-800 dark:text-slate-200"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-bold text-slate-600 dark:text-slate-400 block mb-2">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-3 bg-slate-100 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none text-slate-800 dark:text-slate-200"
-                                required
-                            />
-                        </div>
-                        {error && <p className="text-red-500 dark:text-red-400 text-sm text-center">{error}</p>}
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full p-4 bg-blue-600 text-white rounded-lg text-lg font-bold hover:bg-blue-500 transition-transform transform hover:scale-105 disabled:bg-slate-400 dark:disabled:bg-slate-600"
-                        >
-                            {isLoading ? 'Processing...' : isLogin ? 'Log In' : 'Create Account'}
-                        </button>
-                    </form>
-                    <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-6">
-                        {isLogin ? "Don't have an account?" : "Already have an account?"}
-                        <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-blue-500 dark:text-blue-400 hover:underline ml-1">
-                            {isLogin ? 'Sign Up' : 'Log In'}
-                        </button>
-                    </p>
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 text-center">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">Welcome!</h2>
+                    <p className="text-slate-600 dark:text-slate-400 mb-8">Sign in with your Google account to continue.</p>
+                    {error && <p className="text-red-500 dark:text-red-400 text-sm text-center mb-4">{error}</p>}
+                    <button
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        className="w-full p-4 bg-white text-slate-700 dark:bg-slate-200 dark:text-slate-800 rounded-lg text-lg font-bold hover:bg-slate-50 dark:hover:bg-slate-300 transition-colors transform border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center gap-3"
+                    >
+                        {isLoading ? (
+                            <div className="w-6 h-6 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-blue-500"><path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.75 8.36,4.73 12.19,4.73C15.28,4.73 17.27,6.48 17.27,6.48L19.6,4.2C19.6,4.2 16.59,1.5 12.19,1.5C6.42,1.5 2,6.2 2,12C2,17.8 6.42,22.5 12.19,22.5C18.1,22.5 21.54,18.5 21.54,12.81C21.54,11.89 21.48,11.47 21.35,11.1Z"></path></svg>
+                        )}
+                        <span>{isLoading ? 'Signing In...' : 'Sign In with Google'}</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -337,25 +370,48 @@ const RulerScroller = ({ value, onChange, min, max, orientation = 'horizontal' }
 };
 
 
-const OnboardingSurvey = ({ onComplete }) => {
+const OnboardingSurvey = ({ onComplete, initialName = '' }) => {
     const [step, setStep] = React.useState(0);
     const [surveyData, setSurveyData] = React.useState({
-        name: '',
+        name: initialName,
         goal: 'lose',
         gender: 'male',
-        age: 25,
+        dob: { day: '', month: '', year: '' },
         weight: 70,
         height: 175,
         activityLevel: 'sedentary',
         targetWeight: 65,
+        weeklyRate: 0.5,
     });
     const [heightUnit, setHeightUnit] = React.useState('cm');
 
-    const totalSteps = 8;
+    const totalSteps = 9;
 
-    const handleNext = () => setStep(s => Math.min(s + 1, totalSteps - 1));
-    const handleBack = () => setStep(s => Math.max(s - 1, 0));
+    const handleNext = () => setStep(s => {
+        let nextStep = s + 1;
+        // Skip weekly rate step (6) if goal is to maintain
+        if (nextStep === 6 && surveyData.goal === 'maintain') {
+            nextStep++;
+        }
+        return Math.min(nextStep, totalSteps - 1);
+    });
+    
+    const handleBack = () => setStep(s => {
+        let prevStep = s - 1;
+        // Skip weekly rate step (6) if goal is to maintain
+        if (prevStep === 6 && surveyData.goal === 'maintain') {
+            prevStep--;
+        }
+        return Math.max(prevStep, 0);
+    });
+
     const handleDataChange = (key, value) => setSurveyData(prev => ({ ...prev, [key]: value }));
+    const handleDobChange = (part, value) => {
+        setSurveyData(prev => ({
+            ...prev,
+            dob: { ...prev.dob, [part]: value ? parseInt(value) : '' }
+        }));
+    };
     
     // --- Unit Conversion Helpers ---
     const cmToFeetInches = (cm) => {
@@ -373,41 +429,6 @@ const OnboardingSurvey = ({ onComplete }) => {
         return `${feet}' ${inches}"`;
     };
 
-    const calculateBMR = (data) => {
-        const { gender, weight, height, age } = data;
-        if (gender === 'male') return 10 * weight + 6.25 * height - 5 * age + 5;
-        return 10 * weight + 6.25 * height - 5 * age - 161;
-    };
-
-    const calculateProteinGoal = (data) => {
-        const { weight, activityLevel } = data;
-        const multipliers = { sedentary: 0.8, light: 1.2, moderate: 1.4, active: 1.6 };
-        return Math.round((weight * multipliers[activityLevel]) / 5) * 5;
-    };
-    
-    const calculateWaterGoal = (data) => {
-        const { weight, activityLevel } = data;
-        let baseIntake = weight * 35;
-        const activityBonus = { sedentary: 0, light: 300, moderate: 600, active: 900 };
-        const totalIntake = baseIntake + activityBonus[activityLevel];
-        return Math.round(totalIntake / 50) * 50;
-    };
-
-    const calculateMaintenanceCalories = (data) => {
-        const bmr = calculateBMR(data);
-        const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
-        return Math.round(bmr * activityMultipliers[data.activityLevel]);
-    };
-
-    const calculateFinalGoal = (data) => {
-        const maintenance = calculateMaintenanceCalories(data);
-        switch (data.goal) {
-            case 'lose': return Math.round((maintenance - 500) / 10) * 10;
-            case 'gain': return Math.round((maintenance + 300) / 10) * 10;
-            default: return Math.round(maintenance / 10) * 10;
-        }
-    };
-
     const handleFinish = () => {
         onComplete({
             name: surveyData.name,
@@ -418,6 +439,12 @@ const OnboardingSurvey = ({ onComplete }) => {
             initialSurvey: surveyData
         });
     };
+    
+    const isNextDisabled = () => {
+        if (step === 0 && !surveyData.name.trim()) return true;
+        if (step === 2 && (!surveyData.dob.day || !surveyData.dob.month || !surveyData.dob.year)) return true;
+        return false;
+    }
 
     const renderStep = () => {
         switch (step) {
@@ -447,7 +474,7 @@ const OnboardingSurvey = ({ onComplete }) => {
                         </div>
                     </div>
                 );
-            case 2: // Gender & Age
+            case 2: // Gender & DOB
                  return (
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-6">Tell us a bit about yourself</h2>
@@ -459,8 +486,12 @@ const OnboardingSurvey = ({ onComplete }) => {
                             </div>
                          </div>
                          <div>
-                            <label className="block text-lg font-semibold mb-3">Age</label>
-                            <input type="number" value={surveyData.age} onChange={e => handleDataChange('age', parseInt(e.target.value) || 0)} className="w-full mt-1 p-3 text-center text-xl bg-slate-200 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 outline-none"/>
+                            <label className="block text-lg font-semibold mb-3">Date of Birth</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input type="number" placeholder="DD" value={surveyData.dob.day} onChange={e => handleDobChange('day', e.target.value)} className="w-full p-3 text-center text-xl bg-slate-200 dark:bg-slate-700 rounded-lg outline-none focus:border-blue-500 border-2 border-transparent"/>
+                                <input type="number" placeholder="MM" value={surveyData.dob.month} onChange={e => handleDobChange('month', e.target.value)} className="w-full p-3 text-center text-xl bg-slate-200 dark:bg-slate-700 rounded-lg outline-none focus:border-blue-500 border-2 border-transparent"/>
+                                <input type="number" placeholder="YYYY" value={surveyData.dob.year} onChange={e => handleDobChange('year', e.target.value)} className="w-full p-3 text-center text-xl bg-slate-200 dark:bg-slate-700 rounded-lg outline-none focus:border-blue-500 border-2 border-transparent"/>
+                            </div>
                         </div>
                     </div>
                 );
@@ -498,7 +529,32 @@ const OnboardingSurvey = ({ onComplete }) => {
                         <RulerScroller value={surveyData.targetWeight} onChange={v => handleDataChange('targetWeight', v)} min={30} max={200} />
                     </div>
                 );
-            case 6: // Activity Level
+            case 6: // Weekly Goal
+                const goalRates = [
+                    { value: 0.25, label: 'Gentle (0.25 kg/week)' },
+                    { value: 0.5, label: 'Steady (0.5 kg/week)' },
+                    { value: 0.75, label: 'Ambitious (0.75 kg/week)' },
+                    { value: 1.0, label: 'Intense (1.0 kg/week)' }
+                ];
+                return (
+                    <div className="text-center">
+                        <h2 className="text-2xl font-bold mb-6">
+                            What's your weekly {surveyData.goal === 'lose' ? 'weight loss' : 'weight gain'} pace?
+                        </h2>
+                        <div className="space-y-3">
+                            {goalRates.map(rate => (
+                                <button 
+                                    key={rate.value} 
+                                    onClick={() => { handleDataChange('weeklyRate', rate.value); handleNext(); }} 
+                                    className={`w-full p-4 rounded-lg text-lg font-semibold transition-colors ${surveyData.weeklyRate === rate.value ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
+                                >
+                                    {rate.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 7: // Activity Level
                  return (
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-6">How active are you?</h2>
@@ -511,11 +567,18 @@ const OnboardingSurvey = ({ onComplete }) => {
                         </div>
                     </div>
                 );
-            case 7: // Final Confirmation
+            case 8: // Final Confirmation
+                 const finalGoal = calculateFinalGoal(surveyData);
                  return (
                     <div className="text-center">
-                        <h2 className="text-2xl font-bold mb-6">Ready to Start?</h2>
-                        <p className="text-lg mb-8">Let's begin your journey to a healthier you!</p>
+                        <h2 className="text-2xl font-bold mb-4">Your Personalized Plan</h2>
+                        <p className="text-lg mb-6">Based on your info, here is your recommended starting goal:</p>
+                        <div className="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-xl mb-6">
+                            <p className="text-lg">Daily Calorie Goal:</p>
+                            <span className="text-5xl font-extrabold text-blue-500 dark:text-blue-400">{finalGoal}</span>
+                            <span className="text-xl text-slate-600 dark:text-slate-300"> kcal</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Ready to start your journey?</p>
                         <button onClick={handleFinish} className="w-full p-4 bg-blue-600 text-white rounded-lg text-xl font-bold hover:bg-blue-500 transition-transform transform hover:scale-105">
                             Let's Go!
                         </button>
@@ -548,7 +611,9 @@ const OnboardingSurvey = ({ onComplete }) => {
 
                 <div className="p-4 flex justify-between items-center border-t border-slate-200 dark:border-slate-700">
                      <button onClick={handleBack} disabled={step === 0} className="px-6 py-2 rounded-lg font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
-                     <button onClick={handleNext} disabled={(step === 0 && !surveyData.name)} className="px-8 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-600">Next</button>
+                    {step < totalSteps - 1 && (
+                         <button onClick={handleNext} disabled={isNextDisabled()} className="px-8 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-400 dark:disabled:bg-slate-600">Next</button>
+                    )}
                 </div>
             </div>
         </div>
@@ -591,45 +656,6 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
             newWeight: newWeight,
         });
         onClose();
-    };
-
-    const calculateProteinGoal = (data) => {
-        const { weight, activityLevel } = data;
-        const multipliers = {
-            sedentary: 0.8,
-            light: 1.2,
-            moderate: 1.4,
-            active: 1.6
-        };
-        const protein = Math.round((weight * multipliers[activityLevel]) / 5) * 5;
-        return protein;
-    };
-    
-    const calculateWaterGoal = (data) => {
-        const { weight, activityLevel } = data;
-        let baseIntake = weight * 35;
-        const activityBonus = { sedentary: 0, light: 300, moderate: 600, active: 900 };
-        const totalIntake = baseIntake + activityBonus[activityLevel];
-        return Math.round(totalIntake / 50) * 50;
-    };
-
-    const calculateBMR = (data) => {
-        const { gender, weight, height, age } = data;
-        if (gender === 'male') return 10 * weight + 6.25 * height - 5 * age + 5;
-        return 10 * weight + 6.25 * height - 5 * age - 161;
-    };
-    const calculateMaintenanceCalories = (data) => {
-        const bmr = calculateBMR(data);
-        const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
-        return Math.round(bmr * activityMultipliers[data.activityLevel]);
-    };
-    const calculateFinalGoal = (data) => {
-        const maintenance = calculateMaintenanceCalories(data);
-        switch (data.goal) {
-            case 'lose': return Math.round((maintenance - 500) / 10) * 10;
-            case 'gain': return Math.round((maintenance + 300) / 10) * 10;
-            default: return Math.round(maintenance / 10) * 10;
-        }
     };
 
     const predictedWeight = calculatePredictedWeight();
@@ -678,30 +704,45 @@ const MonthlyCheckInModal = ({ isOpen, onClose, onUpdate, surveyHistory }) => {
 
 const CircularProgress = ({ value, goal, icon, label, unit }) => {
     const progress = goal > 0 ? Math.min((value / goal) * 100, 100) : 0;
-    
+
+    // Circle settings
+    const radius = 15.9155; // matches your SVG path
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference * (1 - progress / 100);
+
     const iconClass = label === 'Water' 
         ? 'text-sky-400 dark:text-sky-300' 
         : 'text-text-secondary-light dark:text-text-secondary-dark';
 
+    const progressColorClass =
+        label === 'Calories' ? 'text-orange-500' :
+        label === 'Protein' ? 'text-lime-500' :
+        label === 'Water' ? 'text-sky-500' :
+        'text-accent';
+
     return (
         <div className="relative flex flex-col items-center justify-center rounded-lg bg-card-light dark:bg-card-dark p-2 shadow-sm h-full w-full">
-            <svg className="h-24 w-24" viewBox="0 0 36 36">
-                <path
-                    className="text-primary"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                ></path>
-                <path
+            <svg className="h-24 w-24 -rotate-90" viewBox="0 0 36 36">
+                {/* Background circle */}
+                <circle
                     className="text-gray-200 dark:text-gray-700/50"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831"
+                    cx="18" cy="18" r={radius}
                     fill="none"
                     stroke="currentColor"
-                    strokeDasharray={`${progress}, 100`}
-                    strokeLinecap="round"
                     strokeWidth="2"
-                ></path>
+                />
+                {/* Progress circle */}
+                <circle
+                    className={`${progressColorClass} transition-all duration-500`}
+                    cx="18" cy="18" r={radius}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.5s' }}
+                />
             </svg>
             <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className={`material-symbols-outlined text-lg ${iconClass}`}>{icon}</span>
@@ -761,8 +802,10 @@ const StreakCounter = ({ streakData }) => {
 
 const StreakCalendar = ({ streakData }) => {
     const today = new Date();
-    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Create a copy to avoid mutating the original `today` object
+    const todayCopy = new Date(today);
+    const startOfWeek = new Date(todayCopy.setDate(todayCopy.getDate() - todayCopy.getDay()));
+    const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     
     const week = Array.from({ length: 7 }).map((_, i) => {
         const date = new Date(startOfWeek);
@@ -773,17 +816,18 @@ const StreakCalendar = ({ streakData }) => {
     const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
     return (
-        <div className="flex justify-around items-center p-4">
+        <div className="flex justify-around items-center">
             {week.map((date, i) => {
                 const dateKey = date.toISOString().split('T')[0];
                 const isCompleted = streakData[dateKey] || false;
                 const isToday = isSameDay(date, new Date());
 
                 return (
-                    <div key={dateKey} className="flex flex-col items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{weekDays[i]}</span>
-                        <div className={`w-10 h-10 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-500/20' : ''}`}>
+                    <div key={dateKey} className="flex flex-col items-center gap-2 text-center">
+                        <span className={`text-xs font-bold ${isToday ? 'text-blue-500' : 'text-slate-500 dark:text-slate-400'}`}>{weekDays[i]}</span>
+                        <div className={`w-10 h-10 flex items-center justify-center rounded-full relative ${isToday ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
                             <FireIcon lit={isCompleted} />
+                            {isToday && <div className="absolute bottom-1 h-1 w-1 bg-blue-500 rounded-full"></div>}
                         </div>
                     </div>
                 );
@@ -792,19 +836,30 @@ const StreakCalendar = ({ streakData }) => {
     );
 };
 
-const StreakModal = ({ isOpen, onClose, streakData }) => {
+const StreakModal = ({ isOpen, onClose, streakData, weeklyProgress, surveyHistory }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-fade-in-scale">
-             <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl shadow-2xl w-full max-w-md mx-auto relative">
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 text-center mb-4">Weekly Streak</h2>
-                    <StreakCalendar streakData={streakData} />
-                </div>
-                 <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+             <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl shadow-2xl w-full max-w-md mx-auto relative overflow-hidden">
+                <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors z-10">
                     <XIcon />
                 </button>
+                <div className="p-8">
+                    <div className="text-center mb-6">
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Your Progress</h2>
+                        <div className="inline-block bg-slate-100 dark:bg-slate-700 p-2 rounded-full">
+                           <StreakCounter streakData={streakData} />
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 bg-slate-100 dark:bg-slate-900/50 rounded-lg mb-6">
+                       <h3 className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-3 text-center tracking-wider uppercase">This Week's Activity</h3>
+                       <StreakCalendar streakData={streakData} />
+                    </div>
+
+                    <WeeklyGoalProgress weeklyProgress={weeklyProgress} surveyHistory={surveyHistory} variant="modal" />
+                </div>
             </div>
         </div>
     );
@@ -825,7 +880,7 @@ const MealList = ({ meals, onRemove }) => (
                         ></div>
                         <div className="flex-grow">
                             <p className="font-medium text-text-main-light dark:text-text-main-dark capitalize">{meal.name}</p>
-                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{meal.calories} kcal, {meal.protein}g protein</p>
+                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{Math.round(meal.calories || 0)} kcal, {Number(meal.protein || 0).toFixed(1)}g protein</p>
                         </div>
                         <button onClick={() => onRemove(meal)} className="p-2 text-slate-500 rounded-full hover:bg-red-500/10 hover:text-red-400 transition-colors">
                             <XIcon />
@@ -996,8 +1051,8 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             onAddMeal({
                 id: crypto.randomUUID(),
                 name: editedMeal.name,
-                calories: Math.round(Number(editedMeal.calories)),
-                protein: Math.round(Number(editedMeal.protein)),
+                calories: Number(editedMeal.calories),
+                protein: Number(editedMeal.protein),
                 image: capturedImage
             });
             handleClose();
@@ -1024,11 +1079,11 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
                             <input type="text" value={editedMeal.name} onChange={(e) => setEditedMeal({...editedMeal, name: e.target.value})} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-xl font-semibold text-slate-800 dark:text-slate-100 capitalize text-center"/>
                             <div className="grid grid-cols-3 gap-2 items-center">
                                 <div>
-                                    <input type="number" value={Math.round(editedMeal.calories)} onChange={(e) => handleManualNutritionChange('calories', parseInt(e.target.value, 10) || 0)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-2xl font-bold text-blue-500 dark:text-blue-400 text-center"/>
+                                    <input type="number" step="0.1" value={editedMeal.calories} onChange={(e) => handleManualNutritionChange('calories', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-2xl font-bold text-blue-500 dark:text-blue-400 text-center"/>
                                     <span className="text-sm text-slate-500 dark:text-slate-400 mt-1 block">kcal</span>
                                 </div>
                                  <div>
-                                    <input type="number" value={Math.round(editedMeal.protein)} onChange={(e) => handleManualNutritionChange('protein', parseInt(e.target.value, 10) || 0)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-2xl font-bold text-sky-500 dark:text-sky-400 text-center"/>
+                                    <input type="number" step="0.1" value={editedMeal.protein} onChange={(e) => handleManualNutritionChange('protein', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-2xl font-bold text-sky-500 dark:text-sky-400 text-center"/>
                                     <span className="text-sm text-slate-500 dark:text-slate-400 mt-1 block">protein (g)</span>
                                 </div>
                                 <div className="flex flex-col items-center justify-center">
@@ -1111,6 +1166,46 @@ const GoalRecommendationCard = ({ maintenanceCalories, dailyGoal, userGoal }) =>
     );
 };
 
+const WeeklyGoalProgress = ({ weeklyProgress, surveyHistory, variant = 'card' }) => {
+    // Return null if no survey data, no weeklyRate, or goal is to maintain
+    if (!surveyHistory?.data?.weeklyRate || surveyHistory.data.goal === 'maintain') {
+        return null;
+    }
+
+    const { goal, weeklyRate } = surveyHistory.data;
+    
+    // Ensure weeklyProgress doesn't exceed 7
+    const cappedProgress = Math.min(weeklyProgress, 7);
+
+    const progressPercentage = (cappedProgress / 7) * 100;
+    const achievedWeight = (cappedProgress / 7) * weeklyRate;
+
+    const goalText = goal === 'lose' ? `Lose ${weeklyRate} kg` : `Gain ${weeklyRate} kg`;
+    
+    const containerClasses = {
+        card: "mt-8 w-full p-6 bg-card-light dark:bg-card-dark rounded-lg shadow-sm animate-fade-in-up",
+        modal: "w-full"
+    };
+
+    return (
+        <section className={containerClasses[variant]}>
+            <div className="flex justify-between items-center mb-2">
+                <h2 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">Weekly Goal Progress</h2>
+                <span className="text-sm font-semibold text-blue-500 dark:text-blue-400">{goalText}</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner">
+                <div
+                    className="bg-blue-500 h-4 rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercentage}%` }}
+                ></div>
+            </div>
+            <p className="text-right mt-2 text-sm text-text-secondary-light dark:text-text-secondary-dark font-medium">
+                {achievedWeight.toFixed(2)} / {weeklyRate.toFixed(2)} kg
+            </p>
+        </section>
+    );
+};
+
 const Toast = ({ message }) => {
     if (!message) return null;
     return (
@@ -1135,7 +1230,7 @@ const HomePage = ({
     totalCalories, dailyGoal, totalProtein, dailyProteinGoal, todaysWaterIntake, 
     dailyWaterGoal, handleAddWater, maintenanceCalories, surveyHistory, 
     getMealInsights, isInsightLoading, insight, insightError, clearInsight, 
-    meals, removeMeal
+    meals, removeMeal, weeklyProgress
 }) => {
     return (
         <div className="flex-grow p-6">
@@ -1161,6 +1256,8 @@ const HomePage = ({
                 </button>
             </section>
 
+            {/* <WeeklyGoalProgress weeklyProgress={weeklyProgress} surveyHistory={surveyHistory} /> */}
+
             <GoalRecommendationCard
                 maintenanceCalories={maintenanceCalories}
                 dailyGoal={dailyGoal}
@@ -1181,7 +1278,7 @@ const HomePage = ({
 const DiaryPage = ({ userName, meals, removeMeal }) => {
      return (
         <div className="flex-grow p-6">
-            <header className="flex items-center justify-between mb-8">
+                       <header className="flex items-center justify-between mb-8">
                 <div className="text-left">
                     <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Your Diary</h1>
                     <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">A log of your daily meals.</p>
@@ -1245,6 +1342,7 @@ export default function App() {
     const [meals, setMeals] = React.useState([]);
     const [todaysWaterIntake, setTodaysWaterIntake] = React.useState(0);
     const [streakData, setStreakData] = React.useState({});
+    const [weeklyProgress, setWeeklyProgress] = React.useState(0);
     const [historicalData, setHistoricalData] = React.useState(null);
 
     // UI State
@@ -1351,6 +1449,7 @@ export default function App() {
                 setDailyWaterGoal(data.dailyWaterGoal || 2500);
                 setMaintenanceCalories(data.maintenanceCalories || 2000);
                 setStreakData(data.streakData || {});
+                setWeeklyProgress(data.weeklyProgress || 0);
             } else {
                 setSurveyHistory(null);
             }
@@ -1378,6 +1477,14 @@ export default function App() {
         if (!user) return;
         const todayKey = getTodaysDateKey();
         const surveyPayload = { startDate: todayKey, data: initialSurvey, lastCheckIn: todayKey };
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dayOfWeek = today.getDay();
+        const startOfWeekDate = new Date(today);
+        startOfWeekDate.setDate(today.getDate() - dayOfWeek);
+        const startOfWeekKey = startOfWeekDate.toISOString().split('T')[0];
+
         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
         await setDoc(userProfileRef, {
             userName: name,
@@ -1387,6 +1494,8 @@ export default function App() {
             maintenanceCalories: maintenance,
             surveyHistory: surveyPayload,
             streakData: {},
+            weeklyProgress: 0,
+            weekStartDate: startOfWeekKey,
         }, { merge: true });
     };
 
@@ -1429,14 +1538,44 @@ export default function App() {
         await setDoc(waterRef, { intake: increment(100) }, { merge: true });
     };
     
-    const updateStreakData = async () => {
+    const handleGoalCompletion = async () => {
         if (!user) return;
         const todayKey = getTodaysDateKey();
         const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile`, 'settings');
-        if (totalCalories >= dailyGoal) {
-             await updateDoc(userProfileRef, { [`streakData.${todayKey}`]: true });
+
+        // Part 1: Update Streak Data
+        await updateDoc(userProfileRef, { [`streakData.${todayKey}`]: true });
+
+        // Part 2: Update Weekly Progress
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Calculate the start of the current week (Sunday)
+        const dayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday...
+        const startOfWeekDate = new Date(today);
+        startOfWeekDate.setDate(today.getDate() - dayOfWeek);
+        const startOfWeekKey = startOfWeekDate.toISOString().split('T')[0];
+
+        // Get the current progress doc to check the week start date
+        const docSnap = await getDoc(userProfileRef);
+        if (!docSnap.exists()) return; // Should not happen for a logged in user with survey
+        
+        const data = docSnap.data();
+        const currentWeekStart = data.weekStartDate;
+
+        if (currentWeekStart !== startOfWeekKey) {
+            // New week has started, reset progress to 1 (for today)
+            await updateDoc(userProfileRef, {
+                weekStartDate: startOfWeekKey,
+                weeklyProgress: 1
+            });
+        } else {
+            // Same week, just increment
+            await updateDoc(userProfileRef, {
+                weeklyProgress: increment(1)
+            });
         }
-    }
+    };
 
     React.useEffect(() => {
         if (!isFirebaseReady || !user) return;
@@ -1456,7 +1595,7 @@ export default function App() {
 
         if (totalCalories >= dailyGoal && !hasHitGoalToday) {
             navigator.vibrate && navigator.vibrate(200);
-            updateStreakData();
+            handleGoalCompletion();
         }
 
         prevTotalCalories.current = totalCalories;
@@ -1544,13 +1683,14 @@ export default function App() {
                     clearInsight={clearInsight}
                     meals={meals}
                     removeMeal={removeMeal}
+                    weeklyProgress={weeklyProgress}
                 />;
         }
     }
 
     if (!isFirebaseReady || surveyHistory === undefined) return <FirebaseLoadingScreen />;
     if (!user) return <AuthScreen />;
-    if (!surveyHistory) return <OnboardingSurvey onComplete={handleSurveyComplete} />;
+    if (!surveyHistory) return <OnboardingSurvey onComplete={handleSurveyComplete} initialName={user?.displayName || ''} />;
 
     return (
         <div className="bg-background-light dark:bg-background-dark font-display text-text-main-light dark:text-text-main-dark min-h-screen">
@@ -1611,7 +1751,13 @@ export default function App() {
             </div>
 
             <AddMealModal isOpen={isAddMealModalOpen} onClose={() => setIsAddMealModalOpen(false)} onAddMeal={addMeal} />
-            <StreakModal isOpen={isStreakModalOpen} onClose={() => setIsStreakModalOpen(false)} streakData={streakData} />
+            <StreakModal 
+                isOpen={isStreakModalOpen} 
+                onClose={() => setIsStreakModalOpen(false)} 
+                streakData={streakData} 
+                weeklyProgress={weeklyProgress}
+                surveyHistory={surveyHistory}
+            />
             {surveyHistory && (
                  <MonthlyCheckInModal
                     isOpen={isCheckInModalOpen}

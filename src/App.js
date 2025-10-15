@@ -746,7 +746,7 @@ const CircularProgress = ({ value, goal, icon, label, unit }) => {
             </svg>
             <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className={`material-symbols-outlined text-lg ${iconClass}`}>{icon}</span>
-                <p className="text-xl font-bold text-text-main-light dark:text-text-main-dark leading-tight">{value}</p>
+                <p className="text-xl font-bold text-text-main-light dark:text-text-main-dark leading-tight">{Number(value).toFixed(1)}</p>
                 <p className="text-[11px] text-text-secondary-light dark:text-text-secondary-dark leading-tight">of {goal}{unit}</p>
                 <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-1">{label}</p>
             </div>
@@ -880,7 +880,7 @@ const MealList = ({ meals, onRemove }) => (
                         ></div>
                         <div className="flex-grow">
                             <p className="font-medium text-text-main-light dark:text-text-main-dark capitalize">{meal.name}</p>
-                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{Math.round(meal.calories || 0)} kcal, {Number(meal.protein || 0).toFixed(1)}g protein</p>
+                            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{(meal.calories || 0).toFixed(1)} kcal, {Number(meal.protein || 0).toFixed(1)}g protein</p>
                         </div>
                         <button onClick={() => onRemove(meal)} className="p-2 text-slate-500 rounded-full hover:bg-red-500/10 hover:text-red-400 transition-colors">
                             <XIcon />
@@ -1007,7 +1007,12 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             if (candidate && candidate.content?.parts?.[0]?.text) {
                 const parsedJson = JSON.parse(candidate.content.parts[0].text);
                 setApiResult(parsedJson);
-                setEditedMeal({ name: parsedJson.mealName, calories: parsedJson.totalCalories, protein: parsedJson.totalProtein, weight: parsedJson.estimatedWeight });
+                setEditedMeal({ 
+                    name: parsedJson.mealName, 
+                    calories: parseFloat((parsedJson.totalCalories || 0).toFixed(1)), 
+                    protein: parseFloat((parsedJson.totalProtein || 0).toFixed(1)), 
+                    weight: parsedJson.estimatedWeight 
+                });
 
                 if (parsedJson.estimatedWeight > 0) {
                     setNutritionRatios({
@@ -1032,8 +1037,8 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             setEditedMeal({
                 ...editedMeal,
                 weight: newWeight,
-                calories: newWeight * nutritionRatios.caloriesPerGram,
-                protein: newWeight * nutritionRatios.proteinPerGram
+                calories: parseFloat((newWeight * nutritionRatios.caloriesPerGram).toFixed(1)),
+                protein: parseFloat((newWeight * nutritionRatios.proteinPerGram).toFixed(1))
             });
         } else {
             setEditedMeal({ ...editedMeal, weight: newWeight });
@@ -1770,5 +1775,6 @@ export default function App() {
         </div>
     );
 }
+
 
 

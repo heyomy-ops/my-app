@@ -349,10 +349,10 @@ const RulerScroller = ({ value, onChange, min, max, orientation = 'horizontal' }
                 );
             } else {
                 return (
-                     <div key={i} className="flex items-center justify-end flex-shrink-0" style={{ height: TICK_SPACING }}>
-                        {isMajorTick && <span className="text-xs mr-2 text-slate-500">{tickValue}</span>}
-                        <div className={`bg-slate-300 dark:bg-slate-600 ${isMajorTick ? 'w-6 h-0.5' : isHalfTick ? 'w-4 h-px' : 'w-3 h-px'}`} />
-                    </div>
+                       <div key={i} className="flex items-center justify-end flex-shrink-0" style={{ height: TICK_SPACING }}>
+                            {isMajorTick && <span className="text-xs mr-2 text-slate-500">{tickValue}</span>}
+                            <div className={`bg-slate-300 dark:bg-slate-600 ${isMajorTick ? 'w-6 h-0.5' : isHalfTick ? 'w-4 h-px' : 'w-3 h-px'}`} />
+                        </div>
                 )
             }
         });
@@ -484,14 +484,14 @@ const OnboardingSurvey = ({ onComplete, initialName = '' }) => {
                  return (
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-6">Tell us a bit about yourself</h2>
-                         <div className="mb-8">
-                             <label className="block text-lg font-semibold mb-3">Gender</label>
-                             <div className="grid grid-cols-2 gap-4">
-                                 <button onClick={() => handleDataChange('gender', 'male')} className={`p-4 rounded-lg text-lg font-semibold transition-colors ${surveyData.gender === 'male' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Male</button>
-                                 <button onClick={() => handleDataChange('gender', 'female')} className={`p-4 rounded-lg text-lg font-semibold transition-colors ${surveyData.gender === 'female' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Female</button>
-                            </div>
-                         </div>
-                         <div>
+                          <div className="mb-8">
+                               <label className="block text-lg font-semibold mb-3">Gender</label>
+                               <div className="grid grid-cols-2 gap-4">
+                                   <button onClick={() => handleDataChange('gender', 'male')} className={`p-4 rounded-lg text-lg font-semibold transition-colors ${surveyData.gender === 'male' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Male</button>
+                                   <button onClick={() => handleDataChange('gender', 'female')} className={`p-4 rounded-lg text-lg font-semibold transition-colors ${surveyData.gender === 'female' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Female</button>
+                               </div>
+                          </div>
+                          <div>
                             <label className="block text-lg font-semibold mb-3">Date of Birth</label>
                             <div className="grid grid-cols-3 gap-2">
                                 <input type="number" placeholder="DD" value={surveyData.dob.day} onChange={e => handleDobChange('day', e.target.value)} className="w-full p-3 text-center text-xl bg-slate-200 dark:bg-slate-700 rounded-lg outline-none focus:border-blue-500 border-2 border-transparent"/>
@@ -511,21 +511,21 @@ const OnboardingSurvey = ({ onComplete, initialName = '' }) => {
                 );
             case 4: // Height
                 return (
-                     <div className="text-center w-full h-full flex flex-col">
-                        <h2 className="text-2xl font-bold mb-2">What's your height?</h2>
-                        <div className="p-1 bg-slate-200 dark:bg-slate-700 rounded-full flex mx-auto mb-4">
-                            <button onClick={() => setHeightUnit('cm')} className={`px-4 py-1 rounded-full text-sm font-semibold ${heightUnit === 'cm' ? 'bg-white dark:bg-slate-600' : 'text-slate-500'}`}>cm</button>
-                            <button onClick={() => setHeightUnit('ft')} className={`px-4 py-1 rounded-full text-sm font-semibold ${heightUnit === 'ft' ? 'bg-white dark:bg-slate-600' : 'text-slate-500'}`}>ft</button>
-                        </div>
-                        <div className="flex-grow flex items-center w-full gap-4 min-h-0">
-                            <div className="w-40 flex-shrink-0">
-                               <p className="text-5xl font-bold text-blue-500 text-center">{displayHeight()}</p>
+                       <div className="text-center w-full h-full flex flex-col">
+                            <h2 className="text-2xl font-bold mb-2">What's your height?</h2>
+                            <div className="p-1 bg-slate-200 dark:bg-slate-700 rounded-full flex mx-auto mb-4">
+                                <button onClick={() => setHeightUnit('cm')} className={`px-4 py-1 rounded-full text-sm font-semibold ${heightUnit === 'cm' ? 'bg-white dark:bg-slate-600' : 'text-slate-500'}`}>cm</button>
+                                <button onClick={() => setHeightUnit('ft')} className={`px-4 py-1 rounded-full text-sm font-semibold ${heightUnit === 'ft' ? 'bg-white dark:bg-slate-600' : 'text-slate-500'}`}>ft</button>
                             </div>
-                            <div className="flex-grow h-full relative">
-                                <RulerScroller value={surveyData.height} onChange={v => handleDataChange('height', v)} min={120} max={220} orientation="vertical" />
+                            <div className="flex-grow flex items-center w-full gap-4 min-h-0">
+                                <div className="w-40 flex-shrink-0">
+                                   <p className="text-5xl font-bold text-blue-500 text-center">{displayHeight()}</p>
+                                </div>
+                                <div className="flex-grow h-full relative">
+                                    <RulerScroller value={surveyData.height} onChange={v => handleDataChange('height', v)} min={120} max={220} orientation="vertical" />
+                                </div>
                             </div>
                         </div>
-                    </div>
                 );
             case 5: // Target Weight
                  return (
@@ -565,7 +565,7 @@ const OnboardingSurvey = ({ onComplete, initialName = '' }) => {
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-6">How active are you?</h2>
                         <div className="space-y-3">
-                             {[{id: 'sedentary', label: 'Sedentary'}, {id: 'light', label:'Lightly Active'}, {id: 'moderate', label: 'Moderately Active'}, {id: 'active', label: 'Very Active'}].map(level => (
+                               {[{id: 'sedentary', label: 'Sedentary'}, {id: 'light', label:'Lightly Active'}, {id: 'moderate', label: 'Moderately Active'}, {id: 'active', label: 'Very Active'}].map(level => (
                                 <button key={level.id} onClick={() => { handleDataChange('activityLevel', level.id); handleNext(); }} className={`w-full p-4 rounded-lg text-lg font-semibold transition-colors text-center ${surveyData.activityLevel === level.id ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
                                     {level.label}
                                 </button>
@@ -958,7 +958,7 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
             <div className="relative w-full h-full">
 
                 {/* Camera View (background layer) */}
-                <div className="absolute inset-0 w-full h-full">
+                <div className="absolute inset-2 overflow-hidden rounded-3xl">
                     {!capturedImage ? <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" /> : <img src={capturedImage} alt="Captured meal" className="w-full h-full object-cover" />}
                     <canvas ref={canvasRef} className="hidden"></canvas>
                 </div>
@@ -1005,7 +1005,7 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
                 </div>
 
                 {/* Scan button (centered at bottom if no result) */}
-                 {!apiResult && !isLoading && !capturedImage && (
+               {!apiResult && !isLoading && !capturedImage && (
                     <button onClick={handleScanMeal} disabled={!stream} className="absolute bottom-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full flex items-center justify-center z-20 shadow-lg transform transition-transform hover:scale-105">
                         <div className="w-16 h-16 rounded-full border-4 border-blue-500"></div>
                     </button>
@@ -1094,7 +1094,7 @@ const FirebaseLoadingScreen = () => (
 const DiaryPage = ({ userName, meals, removeMeal }) => {
      return (
         <div className="flex-grow p-6">
-                       <header className="flex items-center justify-between mb-8">
+                                <header className="flex items-center justify-between mb-8">
                 <div className="text-left">
                     <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Your Diary</h1>
                     <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">A log of your daily meals.</p>
@@ -1418,14 +1418,14 @@ export default function App() {
     }, [totalCalories, dailyGoal, streakData, isFirebaseReady, user]);
 
      React.useEffect(() => {
-        if (surveyHistory && isFirebaseReady) {
-            const today = new Date();
-            const lastCheckInDate = new Date(surveyHistory.lastCheckIn);
-            const diffTime = Math.abs(today - lastCheckInDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+         if (surveyHistory && isFirebaseReady) {
+             const today = new Date();
+             const lastCheckInDate = new Date(surveyHistory.lastCheckIn);
+             const diffTime = Math.abs(today - lastCheckInDate);
+             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            if (diffDays >= 30) setIsCheckInModalOpen(true);
-        }
+             if (diffDays >= 30) setIsCheckInModalOpen(true);
+         }
     }, [surveyHistory, isFirebaseReady]);
 
     const getMealInsights = async () => {

@@ -1487,55 +1487,57 @@ const AddMealModal = ({ isOpen, onClose, onAddMeal }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-50 transition-opacity animate-fade-in-scale">
+    <div className="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
       <div className="w-full h-full flex flex-col items-center justify-center">
         <button
           onClick={handleClose}
-          className="absolute top-6 right-6 p-3 text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors z-20"
+          className="absolute top-6 right-6 p-3 text-white bg-black/50 hover:bg-black/70 rounded-full transition-colors z-20"
         >
           <XIcon />
         </button>
-        <div className="w-full max-w-md space-y-6">
-          <h2 className="text-3xl font-bold text-center text-slate-800 dark:text-slate-100">
+        <div className="w-full h-full relative">
+          <h2 className="absolute top-6 left-1/2 transform -translate-x-1/2 text-2xl font-bold text-white z-10 text-shadow">
             Scan a Meal
           </h2>
-          <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl overflow-hidden aspect-video flex items-center justify-center relative border-2 border-slate-300 dark:border-slate-700 shadow-lg">
+          <div className="bg-slate-900 overflow-hidden w-screen h-screen absolute inset-0 flex items-center justify-center p-4">
             {!capturedImage ? (
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className="absolute inset-4 w-[calc(100%-32px)] h-[calc(100%-32px)] rounded-2xl object-cover"
               />
             ) : (
               <img
                 src={capturedImage}
                 alt="Captured meal"
-                className="w-full h-full object-cover"
+                className="absolute inset-4 w-[calc(100%-32px)] h-[calc(100%-32px)] rounded-2xl object-cover"
               />
             )}
             <canvas ref={canvasRef} className="hidden"></canvas>
           </div>
           {!apiResult && !isLoading && !capturedImage && (
-            <button
-              onClick={handleScanMeal}
-              disabled={!stream}
-              className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-500 transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
-            >
-              <CameraIcon />
-              Scan Meal
-            </button>
+            <div className="fixed bottom-8 left-0 right-0 flex justify-center z-20">
+              <button
+                onClick={handleScanMeal}
+                disabled={!stream}
+                className="bg-blue-600 text-white font-bold py-4 px-8 rounded-full hover:bg-blue-500 transition-all hover:scale-105 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg shadow-lg"
+              >
+                <CameraIcon />
+                Scan Meal
+              </button>
+            </div>
           )}
           {isLoading && <Loader />}
           {error && !isLoading && (
-            <div className="text-center">
-              <p className="text-red-500 dark:text-red-400 font-semibold mb-4">
+            <div className="fixed bottom-8 left-0 right-0 flex flex-col items-center z-20">
+              <p className="text-red-500 dark:text-red-400 font-semibold mb-4 bg-black/50 rounded-lg px-4 py-2 backdrop-blur-sm">
                 {error}
               </p>
               <button
                 onClick={handleRetake}
-                className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors flex items-center justify-center gap-2 mx-auto"
+                className="bg-sky-600 text-white font-bold py-3 px-6 rounded-full hover:bg-sky-500 transition-all flex items-center justify-center gap-2 shadow-lg"
               >
                 <RefreshCwIcon />
                 Try Again
